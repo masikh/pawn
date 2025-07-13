@@ -286,6 +286,7 @@ GLuint createShaderProgram() {
 
         uniform vec3 lightPos1;
         uniform vec3 lightPos2;
+        uniform vec3 lightDir3;  // NEW: constant direction light
         uniform vec3 lightColor;
         uniform vec3 viewPos;  // Camera position
 
@@ -312,19 +313,20 @@ GLuint createShaderProgram() {
             // Normalize normal
             vec3 norm = normalize(Normal);
 
-            // Light directions
-            vec3 lightDir1 = normalize(lightPos1 - WorldPos);
-            vec3 lightDir2 = normalize(lightPos2 - WorldPos);
-
             // View direction
             vec3 viewDir = normalize(viewPos - WorldPos);
 
-            // Diffuse lighting
+            // Light directions
+            vec3 lightDir1 = normalize(lightPos1 - WorldPos);
+            vec3 lightDir2 = normalize(lightPos2 - WorldPos);
+            vec3 lightDir3Norm = normalize(-lightDir3); // assuming it's a direction, not a position
+
             float diff1 = max(dot(norm, lightDir1), 0.0);
             float diff2 = max(dot(norm, lightDir2), 0.0);
+            float diff3 = max(dot(norm, lightDir3Norm), 0.0) * 0.3; // fill light, softer
 
             float brightnessFactor = 2.2;
-            float diffuseLighting = ((diff1 + diff2) * 0.5) * brightnessFactor;
+            float diffuseLighting = ((diff1 + diff2) * 0.5 + diff3) * brightnessFactor;
 
             // Initialize specular
             vec3 specular = vec3(0.0);
@@ -442,8 +444,12 @@ int main() {
     GLint modelLoc = glGetUniformLocation(shaderProgram, "uModel");
     GLint lightPos1Loc = glGetUniformLocation(shaderProgram, "lightPos1");
     GLint lightPos2Loc = glGetUniformLocation(shaderProgram, "lightPos2");
+    GLint lightDir3Loc = glGetUniformLocation(shaderProgram, "lightDir3");
     GLint lightColorLoc = glGetUniformLocation(shaderProgram, "lightColor");
     GLint viewPosLoc = glGetUniformLocation(shaderProgram, "viewPos");
+
+    glm::vec3 lightDir3 = glm::normalize(glm::vec3(0.3f, 1.0f, 0.2f));  // Fill light from above-front-right
+    glUniform3fv(lightDir3Loc, 1, glm::value_ptr(lightDir3));
 
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
