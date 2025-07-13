@@ -13,6 +13,7 @@
 #include <vector>
 #include <utility>
 #include <chrono>
+#include <ranges>
 #include <thread>
 
 class Pawn {
@@ -35,7 +36,7 @@ class Pawn {
 
         void draw() const {
             glBindVertexArray(VAO);
-            glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_INT, 0);
+            glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_INT, nullptr);
         }
 
         [[nodiscard]] GLuint getTexture() const { return texture; }
@@ -44,15 +45,15 @@ class Pawn {
         const std::vector<std::pair<float, float>>& coordinates;
 
         void computePawnCoordinates() {
-            const int segments = 360;
-            const float DEG2RAD = M_PI / 180.0f;
+            constexpr int segments = 360;
+            constexpr float DEG2RAD = M_PI / 180.0f;
 
             float maxY = 0.0f;
-            for (auto& j : coordinates)
-                if (j.second > maxY) maxY = j.second;
+            for (const auto &val: coordinates | std::views::values)
+                if (val > maxY) maxY = val;
 
             for (int i = 0; i <= segments; ++i) {
-                float theta = (float) i * DEG2RAD;
+                float theta = static_cast<float> (i) * DEG2RAD;
                 float cosTheta = std::cos(theta);
                 float sinTheta = std::sin(theta);
 
@@ -98,10 +99,10 @@ class Pawn {
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
             glBufferData(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLsizeiptr>(indices.size() * sizeof(unsigned int)), indices.data(), GL_STATIC_DRAW);
 
-            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)nullptr);
+            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), static_cast<void *>(nullptr));
             glEnableVertexAttribArray(0);
 
-            glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(3 * sizeof(float)));
+            glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void *>(3 * sizeof(float)));
             glEnableVertexAttribArray(1);
 
             glBindVertexArray(0);
@@ -231,30 +232,28 @@ int main() {
     GLint mvpLoc = glGetUniformLocation(shaderProgram, "uMVP");
     glUniform1i(glGetUniformLocation(shaderProgram, "texture1"), 0);
 
-    double angle_x = 180.0f, angle_y = 0.0f, angle_z = 25.0f;
-    float position_x = 0.0f, speed = -0.01f, reset_limit = 1.3f;
-
-    float speed_z = 0.3f, speed_y = 0.3f; // velocity for y,z-axis rotation
+    float position_x = 0.0f;
 
     while (!glfwWindowShouldClose(window)) {
+        float reset_limit = 1.3f;
         double time = glfwGetTime();
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // SMOOTH & CONTINUOUS ROTATION using sin/cos for fluid oscillation
-        angle_x = 180.0 + 50.0 * sin(time * 0.3);  // gentle sway in x-axis
-        angle_y = 60.0 + 60.0 * sin(time * 0.5);   // oscillates smoothly between 0°-120°
-        angle_z = 90.0 + 90.0 * cos(time * 0.25);  // full rotation-style oscillation
+        double angle_x = 180.0 + 50.0 * sin(time * 0.3);  // gentle sway in x-axis
+        double angle_y = 60.0 + 60.0 * sin(time * 0.5);   // oscillates smoothly between 0°-120°
+        double angle_z = 90.0 + 90.0 * cos(time * 0.25);  // full rotation-style oscillation
 
         // SMOOTH TRANSLATION back and forth using sine
-        position_x = reset_limit * sin(time * 0.25); // smoothly loops from -2.0 to 2.0
+        position_x = reset_limit * static_cast<float>(sin(time * 0.25f)); // smoothly loops from -2.0 to 2.0
 
         glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(position_x, 0.0f, 0.0f));
-        model = glm::rotate(model, glm::radians((float)angle_x), glm::vec3(1.0f, 0.0f, 0.0f));
-        model = glm::rotate(model, glm::radians((float)angle_y), glm::vec3(0.0f, 1.0f, 0.0f));
-        model = glm::rotate(model, glm::radians((float)angle_z), glm::vec3(0.0f, 0.0f, 1.0f));
+        model = glm::rotate(model, glm::radians(static_cast<float>(angle_x)), glm::vec3(1.0f, 0.0f, 0.0f));
+        model = glm::rotate(model, glm::radians(static_cast<float>(angle_y)), glm::vec3(0.0f, 1.0f, 0.0f));
+        model = glm::rotate(model, glm::radians(static_cast<float>(angle_z)), glm::vec3(0.0f, 0.0f, 1.0f));
 
-        float wiggle_y = 0.5f + 0.25f * sin((2.0f * M_PI / 7.0f) * time);
+        float wiggle_y = 0.5f + 0.25f * static_cast<float> (sin((2.0f * M_PI / 7.0f) * time));
         glm::mat4 view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, wiggle_y, -2.5f));
         glm::mat4 projection = glm::perspective(glm::radians(45.0f), 800.f / 600.f, 0.1f, 100.0f);
         glm::mat4 mvp = projection * view * model;

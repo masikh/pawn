@@ -1,0 +1,36 @@
+# CLion project files
+.idea/
+cmake-build-*/
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+Makefile
+cmake_install.cmake
+install_manifest.txt
+
+# Build artifacts
+*.o
+*.obj
+*.lo
+*.a
+*.so
+*.dll
+*.dylib
+*.exe
+*.out
+
+# User-specific
+*.log
+*.swp
+*.user
+*.DS_Store
+
+# Compiled Qt files
+moc_*.cpp
+ui_*.h
+qrc_*.cpp
+
+# Core dumps
+core
+*.core
