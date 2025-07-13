@@ -329,6 +329,7 @@ void toggleFullscreen(GLFWwindow* window, GLFWmonitor* monitor, const GLFWvidmod
     if (isFullscreen) {
         // Switch to windowed
         glfwSetWindowMonitor(window, nullptr, windowedX, windowedY, windowedWidth, windowedHeight, 0);
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
     } else {
         // Save current windowed size and position
         glfwGetWindowPos(window, &windowedX, &windowedY);
@@ -336,6 +337,7 @@ void toggleFullscreen(GLFWwindow* window, GLFWmonitor* monitor, const GLFWvidmod
 
         // Switch to fullscreen
         glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
     }
 
     isFullscreen = !isFullscreen;
