@@ -16,6 +16,11 @@
 #include <ranges>
 #include <thread>
 
+bool isFullscreen = false;
+int windowedX = 100, windowedY = 100;  // Starting position
+int windowedWidth = 800, windowedHeight = 600;
+
+
 class Pawn {
     public:
         struct Vertex {
@@ -98,7 +103,7 @@ class Pawn {
         }
 
         void addFlatSquareQuad() {
-            unsigned int startIndex = static_cast<unsigned int>(vertices.size());
+            auto startIndex = static_cast<unsigned int>(vertices.size());
 
             std::vector<Vertex> quadVerts = {
                 { -0.5f, 0.995f, -0.5f, 0.0f, 0.0f, 1.0f }, // Bottom-left
@@ -115,7 +120,6 @@ class Pawn {
             vertices.insert(vertices.end(), quadVerts.begin(), quadVerts.end());
             indices.insert(indices.end(), quadInds.begin(), quadInds.end());
         }
-
 
         void setupPawn() {
             glGenVertexArrays(1, &VAO);
@@ -141,7 +145,7 @@ class Pawn {
             glBindVertexArray(0);
         }
 
-    static void loadTexture(const char* path, GLuint& textureID) {
+        static void loadTexture(const char* path, GLuint& textureID) {
             glGenTextures(1, &textureID);
             glBindTexture(GL_TEXTURE_2D, textureID);
 
@@ -285,41 +289,30 @@ GLuint createShaderProgram() {
     return program;
 }
 
-GLFWwindow* initWindow() {
+GLFWwindow* initWindow(GLFWmonitor** outMonitor, const GLFWvidmode** outMode) {
     if (!glfwInit()) {
         std::cerr << "Failed to initialize GLFW.\n";
         exit(EXIT_FAILURE);
     }
+
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWmonitor* primaryMonitor = glfwGetPrimaryMonitor();
-    if (!primaryMonitor) {
-        std::cerr << "Failed to get primary monitor.\n";
-        glfwTerminate();
-        exit(EXIT_FAILURE);
-    }
+    // Get monitor and video mode for fullscreen switching later
+    *outMonitor = glfwGetPrimaryMonitor();
+    *outMode = glfwGetVideoMode(*outMonitor);
 
-    const GLFWvidmode* mode = glfwGetVideoMode(primaryMonitor);
-    if (!mode) {
-        std::cerr << "Failed to get video mode.\n";
-        glfwTerminate();
-        exit(EXIT_FAILURE);
-    }
-
-    GLFWwindow* window = glfwCreateWindow(mode->width, mode->height, "Pawn Viewer", primaryMonitor, nullptr);
+    GLFWwindow* window = glfwCreateWindow(800, 600, "Pawn Viewer", nullptr, nullptr);
     if (!window) {
-        std::cerr << "Failed to create GLFW fullscreen window.\n";
+        std::cerr << "Failed to create GLFW window.\n";
         glfwTerminate();
         exit(EXIT_FAILURE);
     }
-
-    // Hide the cursor
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
 
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1); // Enable VSync
+
     glewExperimental = GL_TRUE;
     if (glewInit() != GLEW_OK) {
         std::cerr << "Failed to initialize GLEW.\n";
@@ -329,12 +322,31 @@ GLFWwindow* initWindow() {
     }
 
     glEnable(GL_DEPTH_TEST);
-
     return window;
 }
 
+void toggleFullscreen(GLFWwindow* window, GLFWmonitor* monitor, const GLFWvidmode* mode, bool& isFullscreen) {
+    if (isFullscreen) {
+        // Switch to windowed
+        glfwSetWindowMonitor(window, nullptr, windowedX, windowedY, windowedWidth, windowedHeight, 0);
+    } else {
+        // Save current windowed size and position
+        glfwGetWindowPos(window, &windowedX, &windowedY);
+        glfwGetWindowSize(window, &windowedWidth, &windowedHeight);
+
+        // Switch to fullscreen
+        glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+    }
+
+    isFullscreen = !isFullscreen;
+}
+
 int main() {
-    GLFWwindow* window = initWindow();
+    static bool fWasPressed = false;
+    GLFWmonitor* monitor = nullptr;
+    const GLFWvidmode* mode = nullptr;
+    GLFWwindow* window = initWindow(&monitor, &mode);
+
     GLuint shaderProgram = createShaderProgram();
     glUseProgram(shaderProgram);
     glUniform1i(glGetUniformLocation(shaderProgram, "texture1"), 0);
@@ -360,6 +372,16 @@ int main() {
     float position_x = 0.0f;
 
     while (!glfwWindowShouldClose(window)) {
+        // Toggle fullscreen with 'F'
+        if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS) {
+            if (!fWasPressed) {
+                toggleFullscreen(window, monitor, mode, isFullscreen);
+                fWasPressed = true;
+            }
+        } else {
+            fWasPressed = false;
+        }
+
         float reset_limit = 1.3f;
         double time = glfwGetTime();
 
