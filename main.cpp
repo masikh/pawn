@@ -26,7 +26,8 @@ class Pawn {
         struct Vertex {
             float x, y, z;
             float u, v;
-            float texID; // 0.0 for marble, 1.0 for base
+            float texID;
+            float nx, ny, nz; // NEW: normal
         };
 
         std::vector<Vertex> vertices;
@@ -66,23 +67,47 @@ class Pawn {
             for (const auto& val : coordinates | std::views::values)
                 if (val > maxY) maxY = val;
 
+            // Precompute profile normals for revolution (approximate derivative along profile curve)
+            std::vector<glm::vec2> profileNormals(profileSize);
+            for (int j = 0; j < profileSize; ++j) {
+                int prev = std::max(0, j - 1);
+                int next = std::min(profileSize - 1, j + 1);
+
+                float dx = coordinates[next].first - coordinates[prev].first;
+                float dy = coordinates[next].second - coordinates[prev].second;
+
+                glm::vec2 tangent(dx, dy);
+                glm::vec2 normal = glm::normalize(glm::vec2(-dy, dx));
+                profileNormals[j] = normal;
+            }
+
             for (int i = 0; i <= segments; ++i) {
                 float theta = static_cast<float>(i) * DEG2RAD;
                 float cosTheta = std::cos(theta);
                 float sinTheta = std::sin(theta);
 
-                for (int j_index = 0; j_index < profileSize; ++j_index) {
-                    const auto& j = coordinates[j_index];
-                    float r = j.first;
-                    float y = j.second;
+                for (int j = 0; j < profileSize; ++j) {
+                    const auto& coord = coordinates[j];
+                    float r = coord.first;
+                    float y = coord.second;
 
                     float x = r * cosTheta;
                     float z = r * sinTheta;
+
                     float u = static_cast<float>(i) / segments;
                     float v = y / maxY;
 
-                    float texID = (j_index >= profileSize - 3) ? 1.0f : 0.0f;
-                    vertices.push_back({x, y, z, u, v, texID});
+                    float texID = (j >= profileSize - 3) ? 1.0f : 0.0f;
+
+                    // Compute 3D normal from 2D profile normal rotated around Y-axis
+                    const glm::vec2& n2d = profileNormals[j];
+                    glm::vec3 normal(
+                        n2d.x * cosTheta,
+                        n2d.y,
+                        n2d.x * sinTheta
+                    );
+
+                    vertices.push_back({x, y, z, u, v, texID, normal.x, normal.y, normal.z});
                 }
             }
 
@@ -105,11 +130,13 @@ class Pawn {
         void addFlatSquareQuad() {
             auto startIndex = static_cast<unsigned int>(vertices.size());
 
+            glm::vec3 normal = glm::vec3(0.0f, 1.0f, 0.0f);
+
             std::vector<Vertex> quadVerts = {
-                { -0.5f, 0.995f, -0.5f, 0.0f, 0.0f, 1.0f }, // Bottom-left
-                {  0.5f, 0.995f, -0.5f, 1.0f, 0.0f, 1.0f }, // Bottom-right
-                {  0.5f, 0.995f,  0.5f, 1.0f, 1.0f, 1.0f }, // Top-right
-                { -0.5f, 0.995f,  0.5f, 0.0f, 1.0f, 1.0f }, // Top-left
+                { -0.5f, 0.995f, -0.5f, 0.0f, 0.0f, 1.0f, normal.x, normal.y, normal.z }, // Bottom-left
+                {  0.5f, 0.995f, -0.5f, 1.0f, 0.0f, 1.0f, normal.x, normal.y, normal.z }, // Bottom-right
+                {  0.5f, 0.995f,  0.5f, 1.0f, 1.0f, 1.0f, normal.x, normal.y, normal.z }, // Top-right
+                { -0.5f, 0.995f,  0.5f, 0.0f, 1.0f, 1.0f, normal.x, normal.y, normal.z }, // Top-left
             };
 
             std::vector<unsigned int> quadInds = {
@@ -133,14 +160,17 @@ class Pawn {
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
             glBufferData(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLsizeiptr>(indices.size() * sizeof(unsigned int)), indices.data(), GL_STATIC_DRAW);
 
-            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(0));
+            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(0));                      // aPos
             glEnableVertexAttribArray(0);
 
-            glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(3 * sizeof(float)));
+            glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(3 * sizeof(float)));     // aTexCoord
             glEnableVertexAttribArray(1);
 
-            glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(5 * sizeof(float)));
+            glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(5 * sizeof(float)));     // aTexID
             glEnableVertexAttribArray(2);
+
+            glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(6 * sizeof(float)));     // aNormal
+            glEnableVertexAttribArray(3);
 
             glBindVertexArray(0);
         }
@@ -217,13 +247,16 @@ GLuint compileShader(GLenum type, const char* source) {
 GLuint createShaderProgram() {
     const char* vertexShaderSource = R"(
         #version 330 core
+
         layout(location = 0) in vec3 aPos;
         layout(location = 1) in vec2 aTexCoord;
         layout(location = 2) in float aTexID;
+        layout(location = 3) in vec3 aNormal;
 
         out vec2 TexCoord;
         out float TexID;
         out vec3 WorldPos;
+        out vec3 Normal;
 
         uniform mat4 uMVP;
         uniform mat4 uModel;
@@ -232,7 +265,10 @@ GLuint createShaderProgram() {
             gl_Position = uMVP * vec4(aPos, 1.0);
             TexCoord = aTexCoord;
             TexID = aTexID;
-            WorldPos = vec3(uModel * vec4(aPos, 1.0)); // compute world-space position
+            WorldPos = vec3(uModel * vec4(aPos, 1.0));
+
+            // Transform normal using the inverse transpose of the model matrix
+            Normal = mat3(transpose(inverse(uModel))) * aNormal;
         }
     )";
 
@@ -241,17 +277,23 @@ GLuint createShaderProgram() {
         in vec2 TexCoord;
         in float TexID;
         in vec3 WorldPos;
+        in vec3 Normal;
 
         out vec4 FragColor;
 
         uniform sampler2D texture1; // marble
         uniform sampler2D texture2; // base
 
+        uniform vec3 lightPos1;
+        uniform vec3 lightPos2;
+        uniform vec3 lightColor;
+        uniform vec3 viewPos;  // Camera position
+
         void main() {
-            vec4 color;
+            vec4 baseColor;
 
             if (TexID < 0.5) {
-                color = texture(texture1, TexCoord);
+                baseColor = texture(texture1, TexCoord);
             } else {
                 // Circular mask around center (0.5, 0.5)
                 vec2 centeredUV = TexCoord - vec2(0.5);
@@ -261,15 +303,55 @@ GLuint createShaderProgram() {
                 float edgeWidth = 0.01; // smoothstep edge width
 
                 float alpha = 1.0 - smoothstep(radius - edgeWidth, radius + edgeWidth, dist);
-                color = texture(texture2, TexCoord) * vec4(1.0, 1.0, 1.0, alpha);
+                baseColor = texture(texture2, TexCoord) * vec4(1.0, 1.0, 1.0, alpha);
 
                 if (alpha < 0.01)
                     discard;
             }
 
-            FragColor = color;
+            // Normalize normal
+            vec3 norm = normalize(Normal);
+
+            // Light directions
+            vec3 lightDir1 = normalize(lightPos1 - WorldPos);
+            vec3 lightDir2 = normalize(lightPos2 - WorldPos);
+
+            // View direction
+            vec3 viewDir = normalize(viewPos - WorldPos);
+
+            // Diffuse lighting
+            float diff1 = max(dot(norm, lightDir1), 0.0);
+            float diff2 = max(dot(norm, lightDir2), 0.0);
+
+            float brightnessFactor = 2.2;
+            float diffuseLighting = ((diff1 + diff2) * 0.5) * brightnessFactor;
+
+            // Initialize specular
+            vec3 specular = vec3(0.0);
+
+            if (TexID < 0.5) {
+                // Only apply specular to top surface (marble)
+                float shininess = 128.0;
+                float specularStrength = 0.3;
+
+                vec3 reflectDir1 = reflect(-lightDir1, norm);
+                vec3 reflectDir2 = reflect(-lightDir2, norm);
+
+                float spec1 = pow(max(dot(viewDir, reflectDir1), 0.0), shininess);
+                float spec2 = pow(max(dot(viewDir, reflectDir2), 0.0), shininess);
+
+                float specularLighting = ((spec1 + spec2) * 0.5) * brightnessFactor;
+                specular = specularStrength * lightColor * specularLighting;
+            }
+
+            // Combine diffuse and specular
+            vec3 litColor = baseColor.rgb * lightColor * diffuseLighting + specular;
+
+            FragColor = vec4(litColor, baseColor.a);
         }
     )";
+
+
 
     GLuint vs = compileShader(GL_VERTEX_SHADER, vertexShaderSource);
     GLuint fs = compileShader(GL_FRAGMENT_SHADER, fragmentShaderSource);
@@ -357,24 +439,19 @@ int main() {
     Pawn pawn("./data/marble.jpg", "./data/base.jpg");
 
     GLint mvpLoc = glGetUniformLocation(shaderProgram, "uMVP");
-
-    GLint currentTex0, currentTex1;
-    glGetIntegerv(GL_TEXTURE_BINDING_2D, &currentTex0);
-    glActiveTexture(GL_TEXTURE1);
-    glGetIntegerv(GL_TEXTURE_BINDING_2D, &currentTex1);
-    glActiveTexture(GL_TEXTURE0);
+    GLint modelLoc = glGetUniformLocation(shaderProgram, "uModel");
+    GLint lightPos1Loc = glGetUniformLocation(shaderProgram, "lightPos1");
+    GLint lightPos2Loc = glGetUniformLocation(shaderProgram, "lightPos2");
+    GLint lightColorLoc = glGetUniformLocation(shaderProgram, "lightColor");
+    GLint viewPosLoc = glGetUniformLocation(shaderProgram, "viewPos");
 
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    std::cout << "🧩 Texture bindings: GL_TEXTURE0=" << currentTex0
-              << ", GL_TEXTURE1=" << currentTex1 << "\n";
-
     float position_x = 0.0f;
 
     while (!glfwWindowShouldClose(window)) {
-        // Toggle fullscreen with 'F'
         if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS) {
             if (!fWasPressed) {
                 toggleFullscreen(window, monitor, mode, isFullscreen);
@@ -384,38 +461,49 @@ int main() {
             fWasPressed = false;
         }
 
-        float reset_limit = 1.3f;
         double time = glfwGetTime();
-
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // SMOOTH & CONTINUOUS ROTATION using sin/cos for fluid oscillation
-        double angle_x = 180.0 + 50.0 * sin(time * 0.3);  // gentle sway in x-axis
-        double angle_y = 60.0 + 60.0 * sin(time * 0.5);   // oscillates smoothly between 0°-120°
-        double angle_z = 90.0 + 90.0 * cos(time * 0.25);  // full rotation-style oscillation
+        double angle_x = 180.0 + 50.0 * sin(time * 0.3);
+        double angle_y = 60.0 + 60.0 * sin(time * 0.5);
+        double angle_z = 90.0 + 90.0 * cos(time * 0.25);
 
-        // SMOOTH TRANSLATION back and forth using sine
-        position_x = reset_limit * static_cast<float>(sin(time * 0.25f)); // smoothly loops from -2.0 to 2.0
+        position_x = 1.3f * static_cast<float>(sin(time * 0.25f));
 
         glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(position_x, 0.0f, 0.0f));
         model = glm::rotate(model, glm::radians(static_cast<float>(angle_x)), glm::vec3(1.0f, 0.0f, 0.0f));
         model = glm::rotate(model, glm::radians(static_cast<float>(angle_y)), glm::vec3(0.0f, 1.0f, 0.0f));
         model = glm::rotate(model, glm::radians(static_cast<float>(angle_z)), glm::vec3(0.0f, 0.0f, 1.0f));
 
-        float wiggle_y = 0.5f + 0.25f * static_cast<float> (sin((2.0f * M_PI / 7.0f) * time));
+        float wiggle_y = 0.25f + 0.25f * static_cast<float>(sin((2.0f * M_PI / 7.0f) * time));
+
+        glm::vec3 cameraPos(0.0f, wiggle_y, 2.5f);  // Matches the inverse of the view matrix
+        glUniform3f(viewPosLoc, cameraPos.x, cameraPos.y, cameraPos.z);
+
         glm::mat4 view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, wiggle_y, -2.5f));
         glm::mat4 projection = glm::perspective(glm::radians(45.0f), 800.f / 600.f, 0.1f, 100.0f);
         glm::mat4 mvp = projection * view * model;
 
         glUniformMatrix4fv(mvpLoc, 1, GL_FALSE, glm::value_ptr(mvp));
+        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+
+        glUniform3f(lightPos1Loc, -10.0f,  0.0f, 0.0f);
+        glUniform3f(lightPos2Loc,   0.0f, 10.0f, 0.0f);
+
+        float brightness = 2.0f; // 2x brighter
+        glUniform3f(lightColorLoc,
+            std::min(1.0f, brightness * 1.0f),
+            std::min(1.0f, brightness * 1.0f),
+            std::min(1.0f, brightness * 1.0f));
 
         pawn.draw();
 
         glfwSwapBuffers(window);
-        glfwWaitEventsTimeout(0.01); // optional: can remove for higher framerate
+        glfwWaitEventsTimeout(0.01);
     }
 
     glfwDestroyWindow(window);
     glfwTerminate();
     return 0;
 }
+
