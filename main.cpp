@@ -1,8 +1,8 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+#include "createTexture.h"
 #include "pawn_coordinates.h"
 #include "marble_jpg.h"
-#include "base_jpg.h"
 
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
@@ -37,13 +37,16 @@ class Pawn {
         GLuint textureMarble{}, textureBase{};
         GLuint VAO{}, VBO{}, EBO{};
         int profileSize = static_cast<int>(pawn_profile.size());
+        unsigned char* pixelBuf = nullptr;
+        int generatedTextureWidth = 0, generatedTextureHeight = 0, generatedTextureChannels = 0;
 
         explicit Pawn()
             : coordinates(pawn_profile) {
             computePawnCoordinates();
             addFlatSquareQuad();
             loadTextureFromMemory(marble_jpg, marble_jpg_len, textureMarble, "marble_jpg.h");
-            loadTextureFromMemory(base_jpg, base_jpg_len, textureBase, "base_jpg.h");
+            createTexture(pixelBuf, generatedTextureWidth, generatedTextureHeight, generatedTextureChannels);
+            loadGeneratedTexture(textureBase, pixelBuf, generatedTextureWidth, generatedTextureHeight);
             setupPawn();
         }
 
@@ -177,58 +180,6 @@ class Pawn {
             glBindVertexArray(0);
         }
 
-        static void loadTexture(const char* path, GLuint& textureID) {
-            glGenTextures(1, &textureID);
-            glBindTexture(GL_TEXTURE_2D, textureID);
-
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-            int width, height, nrChannels;
-            stbi_set_flip_vertically_on_load(true);
-            unsigned char* data = stbi_load(path, &width, &height, &nrChannels, 0); // Don't force 4
-
-            if (!data) {
-                std::cerr << "❌ stbi_load failed for texture: " << path << "\n";
-                std::cerr << "   Reason: " << stbi_failure_reason() << "\n";
-                return;
-            }
-
-            GLenum format = 0, internalFormat = 0;
-            if (nrChannels == 1) {
-                format = internalFormat = GL_RED;
-            } else if (nrChannels == 3) {
-                format = GL_RGB;
-                internalFormat = GL_RGB8;
-            } else if (nrChannels == 4) {
-                format = GL_RGBA;
-                internalFormat = GL_RGBA8;
-            } else {
-                std::cerr << "❌ Unsupported image channel count (" << nrChannels << "): " << path << "\n";
-                stbi_image_free(data);
-                return;
-            }
-
-            std::cout << "✅ Loaded texture: " << path << "\n";
-            std::cout << "   → Dimensions: " << width << "x" << height << "\n";
-            std::cout << "   → Channels: " << nrChannels << "\n";
-            std::cout << "   → Format: " << ((format == GL_RGB) ? "RGB" :
-                                             (format == GL_RGBA) ? "RGBA" :
-                                             (format == GL_RED) ? "RED" : "Unknown") << "\n";
-
-            glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, format, GL_UNSIGNED_BYTE, data);
-            glGenerateMipmap(GL_TEXTURE_2D);
-
-            GLenum err = glGetError();
-            if (err != GL_NO_ERROR) {
-                std::cerr << "⚠️ OpenGL error after glTexImage2D: 0x" << std::hex << err << std::dec << "\n";
-            }
-
-            stbi_image_free(data);
-        }
-
         static void loadTextureFromMemory(const unsigned char* data, size_t len, GLuint& textureID, std::string name) {
             glGenTextures(1, &textureID);
             glBindTexture(GL_TEXTURE_2D, textureID);
@@ -265,6 +216,21 @@ class Pawn {
             glTexImage2D(GL_TEXTURE_2D, 0, (GLint) internalFormat, width, height, 0, format, GL_UNSIGNED_BYTE, imgData);
             glGenerateMipmap(GL_TEXTURE_2D);
             stbi_image_free(imgData);
+        }
+
+        static void loadGeneratedTexture(GLuint& textureID, const unsigned char* pixelData, int width, int height) {
+            glGenTextures(1, &textureID);
+            glBindTexture(GL_TEXTURE_2D, textureID);
+
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixelData);
+            glGenerateMipmap(GL_TEXTURE_2D);
+
+            std::cout << "✅ Loaded generated RGBA texture (" << width << "x" << height << ")\n";
         }
 };
 

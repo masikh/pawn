@@ -23,7 +23,9 @@ link_directories(
 )
 
 # Create the executable
-add_executable(Pawn main.cpp)
+add_executable(Pawn main.cpp
+        createTexture.cpp
+        createTexture.h)
 
 # Link libraries: GLFW, GLEW, OpenGL framework (required on macOS)
 target_link_libraries(Pawn
