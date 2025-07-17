@@ -38,7 +38,6 @@ unsigned char* rasterizeSVG(const char* logo_svg, int targetWidth, int targetHei
     return svgPixels;
 }
 
-
 unsigned char* stitchTextures(int& outWidth, int& outHeight, int& channels) {
     srand(static_cast<unsigned>(time(nullptr)));  // Seed RNG
 

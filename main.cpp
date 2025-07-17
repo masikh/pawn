@@ -37,7 +37,7 @@ class Pawn {
         GLuint textureMarble{}, textureBase{};
         GLuint VAO{}, VBO{}, EBO{};
         int profileSize = static_cast<int>(pawn_profile.size());
-        unsigned char* pixelBuf = nullptr;
+        unsigned char* pixelBufBase = nullptr;
         int generatedTextureWidth = 0, generatedTextureHeight = 0, generatedTextureChannels = 0;
 
         explicit Pawn()
@@ -45,8 +45,8 @@ class Pawn {
             computePawnCoordinates();
             addFlatSquareQuad();
             loadTextureFromMemory(marble_jpg, marble_jpg_len, textureMarble, "marble_jpg.h");
-            createTexture(pixelBuf, generatedTextureWidth, generatedTextureHeight, generatedTextureChannels);
-            loadGeneratedTexture(textureBase, pixelBuf, generatedTextureWidth, generatedTextureHeight);
+            createTexture(pixelBufBase, generatedTextureWidth, generatedTextureHeight, generatedTextureChannels);
+            loadGeneratedTexture(textureBase, pixelBufBase, generatedTextureWidth, generatedTextureHeight);
             setupPawn();
         }
 
@@ -471,6 +471,10 @@ int main() {
             }
         } else {
             fWasPressed = false;
+        }
+
+        if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+            glfwSetWindowShouldClose(window, GL_TRUE);
         }
 
         double time = glfwGetTime();
