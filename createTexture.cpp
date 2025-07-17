@@ -95,7 +95,7 @@ void blendCenter(unsigned char* dst, int dstW, int dstH, unsigned char* src, int
     }
 }
 
-void createTexture(unsigned char*& bigTex, int& width, int& height, int& channels) {
+void createTextureBase(unsigned char*& bigTex, int& width, int& height, int& channels) {
     /*
      * Usage:
      *     unsigned char* pixelBuf = nullptr;

@@ -45,7 +45,7 @@ class Pawn {
             computePawnCoordinates();
             addFlatSquareQuad();
             loadTextureFromMemory(marble_jpg, marble_jpg_len, textureMarble, "marble_jpg.h");
-            createTexture(pixelBufBase, generatedTextureWidth, generatedTextureHeight, generatedTextureChannels);
+            createTextureBase(pixelBufBase, generatedTextureWidth, generatedTextureHeight, generatedTextureChannels);
             loadGeneratedTexture(textureBase, pixelBufBase, generatedTextureWidth, generatedTextureHeight);
             setupPawn();
         }
