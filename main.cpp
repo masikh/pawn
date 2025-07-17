@@ -1,6 +1,6 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
-#include "createTexture.h"
+#include "createTextureBase.h"
 #include "pawn_coordinates.h"
 #include "marble_jpg.h"
 
