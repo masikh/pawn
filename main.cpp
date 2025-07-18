@@ -2,7 +2,7 @@
 #include "stb_image.h"
 #include "createTextureBase.h"
 #include "pawn_coordinates.h"
-#include "marble_jpg.h"
+#include "marble_downsized.h"
 
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
@@ -37,16 +37,19 @@ class Pawn {
         GLuint textureMarble{}, textureBase{};
         GLuint VAO{}, VBO{}, EBO{};
         int profileSize = static_cast<int>(pawn_profile.size());
+
         unsigned char* pixelBufBase = nullptr;
+
         int generatedTextureWidth = 0, generatedTextureHeight = 0, generatedTextureChannels = 0;
 
         explicit Pawn()
             : coordinates(pawn_profile) {
             computePawnCoordinates();
             addFlatSquareQuad();
-            loadTextureFromMemory(marble_jpg, marble_jpg_len, textureMarble, "marble_jpg.h");
+            loadTextureFromMemory(marble_jpg, marble_jpg_len, textureMarble, "marble_downsized.h");
             createTextureBase(pixelBufBase, generatedTextureWidth, generatedTextureHeight, generatedTextureChannels);
             loadGeneratedTexture(textureBase, pixelBufBase, generatedTextureWidth, generatedTextureHeight);
+
             setupPawn();
         }
 
@@ -218,6 +221,23 @@ class Pawn {
             stbi_image_free(imgData);
         }
 
+        static GLuint uploadTextureToGPU(const std::vector<unsigned char>& texData, int width, int height, GLuint& textureID) {
+            glGenTextures(1, &textureID);
+            glBindTexture(GL_TEXTURE_2D, textureID);
+
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height,
+                     0, GL_RGB, GL_UNSIGNED_BYTE, texData.data());
+
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+            glGenerateMipmap(GL_TEXTURE_2D);
+
+            return textureID;
+        }
+
         static void loadGeneratedTexture(GLuint& textureID, const unsigned char* pixelData, int width, int height) {
             glGenTextures(1, &textureID);
             glBindTexture(GL_TEXTURE_2D, textureID);
@@ -230,7 +250,10 @@ class Pawn {
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixelData);
             glGenerateMipmap(GL_TEXTURE_2D);
 
-            std::cout << "✅ Loaded generated RGBA texture (" << width << "x" << height << ")\n";
+            std::cout << "✅ Loaded generated texture:\n";
+            std::cout << "   → Dimensions: " << width << "x" << height << "\n";
+            std::cout << "   → Channels: 4\n";
+            std::cout << "   → Format: RGBA\n";
         }
 };
 

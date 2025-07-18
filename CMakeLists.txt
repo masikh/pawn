@@ -3,6 +3,9 @@ project(Pawn)
 
 set(CMAKE_CXX_STANDARD 20)
 
+# Enable LTO for dead code elimination and internal compression:
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
+
 # Find packages via pkg-config
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GLFW REQUIRED glfw3)
@@ -25,7 +28,8 @@ link_directories(
 # Create the executable
 add_executable(Pawn main.cpp
         createTextureBase.cpp
-        createTextureBase.h)
+        createTextureBase.h
+)
 
 # Link libraries: GLFW, GLEW, OpenGL framework (required on macOS)
 target_link_libraries(Pawn
@@ -35,4 +39,10 @@ target_link_libraries(Pawn
         "-framework Cocoa"
         "-framework IOKit"
         "-framework CoreVideo"
+)
+
+# Post-build: Strip symbols from the binary and compress
+add_custom_command(TARGET Pawn POST_BUILD
+        COMMAND strip -u -r $<TARGET_FILE:Pawn>
+        COMMENT "Stripping and compressing binary with UPX (Release build)"
 )
