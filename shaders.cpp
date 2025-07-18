@@ -2,7 +2,11 @@
 // Created by Robert Nagtegaal on 18/07/2025.
 //
 #include <GL/glew.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include <iostream>
+#include "shaders.h"
+
 
 GLuint compileShader(GLenum type, const char* source) {
     GLuint shader = glCreateShader(type);
@@ -147,4 +151,21 @@ GLuint createShaderProgram() {
     glDeleteShader(vs);
     glDeleteShader(fs);
     return program;
+}
+
+void setupShaders() {
+    GLuint shaderProgram = createShaderProgram();
+    glUseProgram(shaderProgram);
+    glUniform1i(glGetUniformLocation(shaderProgram, "texture1"), 0);
+    glUniform1i(glGetUniformLocation(shaderProgram, "texture2"), 1);
+
+    mvpLoc = glGetUniformLocation(shaderProgram, "uMVP");
+    modelLoc = glGetUniformLocation(shaderProgram, "uModel");
+    lightPos1Loc = glGetUniformLocation(shaderProgram, "lightPos1");
+    lightPos2Loc = glGetUniformLocation(shaderProgram, "lightPos2");
+    lightDir3Loc = glGetUniformLocation(shaderProgram, "lightDir3");
+    lightColorLoc = glGetUniformLocation(shaderProgram, "lightColor");
+    viewPosLoc = glGetUniformLocation(shaderProgram, "viewPos");
+    lightDir3 = glm::normalize(glm::vec3(0.3f, 1.0f, 0.2f));  // Fill light from above-front-right
+    glUniform3fv(lightDir3Loc, 1, glm::value_ptr(lightDir3));
 }

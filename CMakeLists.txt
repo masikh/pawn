@@ -33,6 +33,8 @@ add_executable(Pawn main.cpp
         bezierCurvesPawn.h
         shaders.cpp
         shaders.h
+        setupGLFW.cpp
+        setupGLFW.h
 )
 
 # Link libraries: GLFW, GLEW, OpenGL framework (required on macOS)
