@@ -6,7 +6,6 @@
 #include "pawn_coordinates.h"
 #include "marble_downsized.h"
 
-
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
@@ -146,7 +145,7 @@ class Pawn {
                 { -0.5f, 0.995f,  0.5f, 0.0f, 1.0f, 1.0f, normal.x, normal.y, normal.z }, // Top-left
             };
 
-            std::vector<unsigned int> quadInds = {
+            std::vector quadInds = {
                 startIndex,     startIndex + 1, startIndex + 2,
                 startIndex + 2, startIndex + 3, startIndex
             };
