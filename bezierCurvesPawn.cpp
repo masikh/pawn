@@ -52,18 +52,7 @@ void generatePawnMesh(
         }
     }
 
-    // ---- Normalize height (Step 2) ----
-    float minY = FLT_MAX, maxY = -FLT_MAX;
-    for (const auto& p : profilePoints) {
-        minY = std::min(minY, p.y);
-        maxY = std::max(maxY, p.y);
-    }
-    float height = maxY - minY;
-    for (auto& p : profilePoints) {
-        p.y = (p.y - minY) / height;
-    }
-
-    // ---- Step 3: Revolve to 3D ----
+    // ---- Step 2: Revolve to 3D ----
     outVertices.clear();
     outIndices.clear();
 
@@ -124,7 +113,7 @@ void generatePawnMesh(
         }
     }
 
-    // ---- Step 4: Build triangle indices ----
+    // ---- Step 3: Build triangle indices ----
     for (int i = 0; i < rows - 1; ++i) {
         for (int j = 0; j < radialDivisions; ++j) {
             int curr = i * (radialDivisions + 1) + j;
