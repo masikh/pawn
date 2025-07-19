@@ -1,6 +1,9 @@
+//
+// Created by Robert Nagtegaal on 18/07/2025.
+//
+
 #include <vector>
 #include <cmath>
-#include <cfloat>
 #include <glm/glm.hpp>
 #include "bezierCurvesPawn.h"
 
@@ -31,7 +34,7 @@ curvePoint evaluateBezierDerivative(const Curve& c, float t) {
     return d;
 }
 
-// ---- Step 2–4: Generate mesh from curves ----
+// ---- Step 2–3: Generate mesh from curves ----
 void generatePawnMesh(
     std::vector<Vertex>& outVertices,
     std::vector<unsigned int>& outIndices,
@@ -58,23 +61,32 @@ void generatePawnMesh(
 
     int rows = static_cast<int>(profilePoints.size());
 
-    for (int i = 0; i < rows; ++i) {
-        float v = static_cast<float>(i) / static_cast<float>((rows - 1));
+    // Compute min and max Y from profilePoints to determine total vertical range
+    float minY = FLT_MAX, maxY = -FLT_MAX;
+    for (const auto& pt : profilePoints) {
+        if (pt.y < minY) minY = pt.y;
+        if (pt.y > maxY) maxY = pt.y;
+    }
+    float totalHeight = maxY - minY;
 
-        // Remap v to repeat the same texture in two vertical regions
+    // Build the mesh by revolving the profile
+    for (int i = 0; i < rows; ++i) {
+        const auto& p = profilePoints[i];
+        const auto& dp = profileDerivatives[i];
+
+        // Compute v based on actual height
+        float v = (p.y - minY) / totalHeight;
+
+        // Remap v: restart the texture after a certain vertical point
         float vAdjusted;
-        if (v <= 0.0575f) {
-            // Map [0.0, 0.0575] → [0.0, 1.0]
-            vAdjusted = v / 0.0575f;
+        float controlPoint = 0.24089038672798702f;  // from bezierCurvesPawn.h
+        if (v <= controlPoint) {
+            vAdjusted = v / controlPoint; // map [0, 0.0575] → [0, 1]
         } else {
-            // Map [0.0575, 1.0] → [0.0, 1.0]
-            vAdjusted = (v - 0.0575f) / (1.0f - 0.0575f);
+            vAdjusted = (v - controlPoint) / (1.0f - controlPoint); // map [0.0575, 1.0] → [0, 1]
         }
 
         float texID = 0.0f; // Always use texture1
-
-        const auto& p = profilePoints[i];
-        const auto& dp = profileDerivatives[i];
 
         for (int j = 0; j <= radialDivisions; ++j) {
             float u = static_cast<float>(j) / static_cast<float>(radialDivisions);
