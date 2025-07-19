@@ -27,14 +27,14 @@ link_directories(
 
 # Create the executable
 add_executable(Pawn main.cpp
-        createTextureBase.cpp
-        createTextureBase.h
-        bezierCurvesPawn.cpp
-        bezierCurvesPawn.h
-        shaders.cpp
-        shaders.h
-        setupGLFW.cpp
-        setupGLFW.h
+        textures/createTextureBase.cpp
+        textures/createTextureBase.h
+        bezierPawn/bezierCurvesPawn.cpp
+        bezierPawn/bezierCurvesPawn.h
+        shaders/shaders.cpp
+        shaders/shaders.h
+        glfw/setupGLFW.cpp
+        glfw/setupGLFW.h
 )
 
 # Link libraries: GLFW, GLEW, OpenGL framework (required on macOS)

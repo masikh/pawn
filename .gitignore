@@ -1,6 +1,7 @@
 # CLion project files
 .idea/
 cmake-build-*/
+rippled-Pawn/
 
 # CMake generated files
 CMakeCache.txt

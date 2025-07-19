@@ -1,10 +1,10 @@
 #define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
-#include "shaders.h"
-#include "setupGLFW.h"
-#include "createTextureBase.h"
-#include "bezierCurvesPawn.h"
-#include "marble_downsized.h"
+#include "textures/stb_image.h"
+#include "shaders/shaders.h"
+#include "glfw/setupGLFW.h"
+#include "textures/createTextureBase.h"
+#include "bezierPawn/bezierCurvesPawn.h"
+#include "textures/marble.h"
 
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
@@ -35,7 +35,7 @@ class Pawn {
         explicit Pawn() {
             generatePawnMesh(vertices, indices);
             addFlatSquareQuad();
-            loadTextureFromMemory(marble_jpg, marble_jpg_len, textureMarble, "marble_downsized.h");
+            loadTextureFromMemory(marble_jpg, marble_jpg_len, textureMarble, "marble.h");
             createTextureBase(pixelBufBase, generatedTextureWidth, generatedTextureHeight, generatedTextureChannels);
             loadGeneratedTexture(textureBase, pixelBufBase, generatedTextureWidth, generatedTextureHeight);
 
