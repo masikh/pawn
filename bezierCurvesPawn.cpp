@@ -1,134 +1,142 @@
-//
-// Created by Robert Nagtegaal on 18/07/2025.
-//
-
+#include <vector>
+#include <cmath>
+#include <cfloat>
+#include <glm/glm.hpp>
 #include "bezierCurvesPawn.h"
 
-#include <GL/glew.h>
-#include <GLFW/glfw3.h>
 
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-
-#include <vector>
-#include <array>
-#include <cmath>
-
-
-glm::vec2 bezier(float t, const glm::vec2& p0, const glm::vec2& p1, const glm::vec2& p2, const glm::vec2& p3) {
+// ---- Step 1: Evaluate a single Bézier curve ----
+curvePoint evaluateBezier(const Curve& c, float t) {
     float u = 1.0f - t;
     float tt = t * t;
     float uu = u * u;
     float uuu = uu * u;
     float ttt = tt * t;
 
-    return uuu * p0 + 3 * uu * t * p1 + 3 * u * tt * p2 + ttt * p3;
+    curvePoint p{};
+    p.x = uuu * c.P0.x + 3 * uu * t * c.C1.x + 3 * u * tt * c.C2.x + ttt * c.P3.x;
+    p.y = uuu * c.P0.y + 3 * uu * t * c.C1.y + 3 * u * tt * c.C2.y + ttt * c.P3.y;
+    return p;
 }
 
-// Takes a Bezier profile of N segments (each with 4 control points), returns sampled points
-std::vector<std::pair<float, float>> sampleProfile(const std::vector<std::array<float, 8>>& profile, int samplesPerCurve) {
-    std::vector<std::pair<float, float>> sampledPoints;
+// Derivative of Bézier (for gradient)
+curvePoint evaluateBezierDerivative(const Curve& c, float t) {
+    float u = 1.0f - t;
+    float tt = t * t;
+    float uu = u * u;
 
-    for (const auto& segment : profile) {
-        for (int i = 0; i < samplesPerCurve; ++i) {
-            float t = static_cast<float>(i) / static_cast<float>(samplesPerCurve - 1);
-            sampledPoints.push_back(bezierPoint(segment, t));
+    curvePoint d{};
+    d.x = 3 * uu * (c.C1.x - c.P0.x) + 6 * u * t * (c.C2.x - c.C1.x) + 3 * tt * (c.P3.x - c.C2.x);
+    d.y = 3 * uu * (c.C1.y - c.P0.y) + 6 * u * t * (c.C2.y - c.C1.y) + 3 * tt * (c.P3.y - c.C2.y);
+    return d;
+}
+
+// ---- Step 2–4: Generate mesh from curves ----
+void generatePawnMesh(
+    std::vector<Vertex> outVertices,
+    std::vector<unsigned int>& outIndices,
+    int curveResolution, // number of points sampled along each Bézier curve segment.
+    int radialDivisions  // number of rotational steps around the Y-axis to create the 3D mesh
+) {
+    std::vector<curvePoint> profilePoints;
+    std::vector<curvePoint> profileDerivatives;
+    std::vector<float> tValues;
+
+    // Sample all curves into a single profile
+    for (const auto& curve : curves) {
+        for (int i = 0; i <= curveResolution; ++i) {
+            float t = static_cast<float>(i) / static_cast<float>(curveResolution);
+            profilePoints.push_back(evaluateBezier(curve, t));
+            profileDerivatives.push_back(evaluateBezierDerivative(curve, t));
+            tValues.push_back(t);
         }
     }
 
-    return sampledPoints;
-}
+    // ---- Normalize height (Step 2) ----
+    float minY = FLT_MAX, maxY = -FLT_MAX;
+    for (const auto& p : profilePoints) {
+        minY = std::min(minY, p.y);
+        maxY = std::max(maxY, p.y);
+    }
+    float height = maxY - minY;
+    for (auto& p : profilePoints) {
+        p.y = (p.y - minY) / height;
+    }
 
-std::vector<Vertex> generateRevolvedMesh(const std::vector<glm::vec2>& profile, int segments = 64) {
-    std::vector<Vertex> vertices;
-    float twoPi = 2.0f * M_PI;
+    // ---- Step 3: Revolve to 3D ----
+    outVertices.clear();
+    outIndices.clear();
 
-    for (int i = 0; i < segments; ++i) {
-        float theta = static_cast<float>(i) / static_cast<float>(segments) * twoPi;
+    int rows = static_cast<int>(profilePoints.size());
 
-        for (const auto& pt : profile) {
-            float x = pt.x * cos(theta);
-            float z = pt.x * sin(theta);
-            float y = pt.y;
+    for (int i = 0; i < rows; ++i) {
+        float v = static_cast<float>(i) / static_cast<float>((rows - 1));
 
-            glm::vec3 pos(x, y, z);
-            glm::vec3 norm(cos(theta), 0.0f, sin(theta));  // Simplified normal
+        // Dynamic texID assignment based on the height of the pawn (v)
+        float texID = 0.0f;
+        /*
+        if (v < 0.33f) texID = 0.0f;
+        else if (v < 0.66f) texID = 1.0f;
+        else texID = 2.0f;
+        */
 
-            vertices.push_back({ pos, glm::normalize(norm) });
+        const auto& p = profilePoints[i];
+        const auto& dp = profileDerivatives[i];
+
+        for (int j = 0; j <= radialDivisions; ++j) {
+            float u = static_cast<float>(j) / static_cast<float>(radialDivisions);
+            float theta = 2.0f * static_cast<float>(M_PI) * u;
+
+            // Position
+            float x = p.x * cos(theta);
+            float y = p.y;
+            float z = p.x * sin(theta);
+
+            // Tangent w.r.t t (profile direction)
+            glm::vec3 dt(
+                dp.x * cos(theta),
+                dp.y,
+                dp.x * sin(theta)
+            );
+
+            // Tangent w.r.t θ (rotation direction)
+            glm::vec3 dtheta(
+                -p.x * sin(theta),
+                0.0f,
+                p.x * cos(theta)
+            );
+
+            // Normal = cross product
+            glm::vec3 normal = glm::normalize(glm::cross(dtheta, dt));
+
+            Vertex vert{};
+            vert.x = x;
+            vert.y = y;
+            vert.z = z;
+            vert.u = u;
+            vert.v = v;
+            vert.texID = texID;
+            vert.nx = normal.x;
+            vert.ny = normal.y;
+            vert.nz = normal.z;
+
+            outVertices.push_back(vert);
         }
     }
 
-    return vertices;
-}
+    // ---- Step 4: Build triangle indices ----
+    for (int i = 0; i < rows - 1; ++i) {
+        for (int j = 0; j < radialDivisions; ++j) {
+            int curr = i * (radialDivisions + 1) + j;
+            int next = (i + 1) * (radialDivisions + 1) + j;
 
-std::vector<unsigned int> generateIndices(int profilePoints, int segments) {
-    std::vector<unsigned int> indices;
+            outIndices.push_back(curr);
+            outIndices.push_back(next);
+            outIndices.push_back(curr + 1);
 
-    for (int i = 0; i < segments; ++i) {
-        int ringStart = i * profilePoints;
-        int nextRingStart = ((i + 1) % segments) * profilePoints;
-
-        for (int j = 0; j < profilePoints - 1; ++j) {
-            indices.push_back(ringStart + j);
-            indices.push_back(nextRingStart + j);
-            indices.push_back(ringStart + j + 1);
-
-            indices.push_back(ringStart + j + 1);
-            indices.push_back(nextRingStart + j);
-            indices.push_back(nextRingStart + j + 1);
+            outIndices.push_back(curr + 1);
+            outIndices.push_back(next);
+            outIndices.push_back(next + 1);
         }
     }
-
-    return indices;
-}
-
-void uploadToGPU() {
-    GLuint vao, vbo, ebo;
-    glGenVertexArrays(1, &vao);
-    glGenBuffers(1, &vbo);
-    glGenBuffers(1, &ebo);
-
-    glBindVertexArray(vao);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(vertices.size() * sizeof(Vertex)), vertices.data(), GL_STATIC_DRAW);
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLsizeiptr>(indices.size() * sizeof(unsigned int)), indices.data(), GL_STATIC_DRAW);
-
-    // Position
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
-    glEnableVertexAttribArray(0);
-    // Normal
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
-    glEnableVertexAttribArray(1);
-
-    glBindVertexArray(0);
-}
-
-void render() {
-    glBindVertexArray(vao);
-    glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_INT, 0);
-}
-
-void generatePawnGeometry(const std::vector<std::array<float, 8>>& bezierSegments,
-                          std::vector<Vertex>& outVertices,
-                          std::vector<unsigned int>& outIndices,
-                          int samplesPerCurve,
-                          int segments) {
-    auto profile = sampleProfile(bezierSegments, samplesPerCurve);
-    std::vector<glm::vec2> profileVec2;
-    for (const auto& [x, y] : profile)
-        profileVec2.emplace_back(x, y);
-
-    auto revolvedVertices = generateRevolvedMesh(profileVec2, segments);
-    auto revolvedIndices = generateIndices(static_cast<int>(profile.size()), segments);
-
-    // Append revolved geometry
-    size_t startVertexIndex = outVertices.size();
-    outVertices.insert(outVertices.end(), revolvedVertices.begin(), revolvedVertices.end());
-
-    // Adjust indices and insert
-    for (auto& idx : revolvedIndices)
-        outIndices.push_back(static_cast<unsigned int>(idx + startVertexIndex));
 }

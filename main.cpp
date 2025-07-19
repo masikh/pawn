@@ -4,6 +4,7 @@
 #include "setupGLFW.h"
 #include "createTextureBase.h"
 #include "pawn_coordinates.h"
+#include "bezierCurvesPawn.h"
 #include "marble_downsized.h"
 
 #include <GL/glew.h>
@@ -23,13 +24,6 @@
 
 class Pawn {
     public:
-        struct Vertex {
-            float x, y, z;
-            float u, v;
-            float texID;
-            float nx, ny, nz; // NEW: normal
-        };
-
         std::vector<Vertex> vertices;
         std::vector<unsigned int> indices;
         GLuint textureMarble{}, textureBase{};
@@ -42,7 +36,8 @@ class Pawn {
 
         explicit Pawn()
             : coordinates(pawn_profile) {
-            computePawnCoordinates();
+            // computePawnCoordinates();
+            generatePawnMesh(vertices, indices);
             addFlatSquareQuad();
             loadTextureFromMemory(marble_jpg, marble_jpg_len, textureMarble, "marble_downsized.h");
             createTextureBase(pixelBufBase, generatedTextureWidth, generatedTextureHeight, generatedTextureChannels);
