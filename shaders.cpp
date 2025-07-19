@@ -80,7 +80,8 @@ GLuint createShaderProgram() {
                 vec2 centeredUV = TexCoord - vec2(0.5);
                 float dist = length(centeredUV);
 
-                float radius = 0.385;
+                //float radius = 0.385;
+                float radius = 0.325;
                 float edgeWidth = 0.01; // smoothstep edge width
 
                 float alpha = 1.0 - smoothstep(radius - edgeWidth, radius + edgeWidth, dist);

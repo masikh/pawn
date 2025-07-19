@@ -57,13 +57,13 @@ class Pawn {
         void addFlatSquareQuad() {
             auto startIndex = static_cast<unsigned int>(vertices.size());
 
-            glm::vec3 normal = glm::vec3(0.0f, 1.0f, 0.0f);
+            glm::vec3 normal = glm::vec3(0.0f, -1.0f, 0.0f);
 
             std::vector<Vertex> quadVerts = {
-                { -0.5f, 0.995f, -0.5f, 0.0f, 0.0f, 1.0f, normal.x, normal.y, normal.z }, // Bottom-left
-                {  0.5f, 0.995f, -0.5f, 1.0f, 0.0f, 1.0f, normal.x, normal.y, normal.z }, // Bottom-right
-                {  0.5f, 0.995f,  0.5f, 1.0f, 1.0f, 1.0f, normal.x, normal.y, normal.z }, // Top-right
-                { -0.5f, 0.995f,  0.5f, 0.0f, 1.0f, 1.0f, normal.x, normal.y, normal.z }, // Top-left
+                { -0.5f, 0.999999f, -0.5f, 0.0f, 0.0f, 1.0f, normal.x, normal.y, normal.z }, // Bottom-left
+                {  0.5f, 0.999999f, -0.5f, 1.0f, 0.0f, 1.0f, normal.x, normal.y, normal.z }, // Bottom-right
+                {  0.5f, 0.999999f,  0.5f, 1.0f, 1.0f, 1.0f, normal.x, normal.y, normal.z }, // Top-right
+                { -0.5f, 0.999999f,  0.5f, 0.0f, 1.0f, 1.0f, normal.x, normal.y, normal.z }, // Top-left
             };
 
             std::vector quadInds = {
