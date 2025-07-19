@@ -18,7 +18,7 @@ void generatePawnMesh(
      * Create vertices and indices for the Pawn
      */
 
-    std::vector<Vertex> outVertices,
+    std::vector<Vertex>& outVertices,
     std::vector<unsigned int>& outIndices,
     int curveResolution = 100, // number of points sampled along each Bézier curve segment.
     int radialDivisions = 40  // number of rotational steps around the Y-axis to create the 3D mesh

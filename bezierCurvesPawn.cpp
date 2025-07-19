@@ -33,7 +33,7 @@ curvePoint evaluateBezierDerivative(const Curve& c, float t) {
 
 // ---- Step 2–4: Generate mesh from curves ----
 void generatePawnMesh(
-    std::vector<Vertex> outVertices,
+    std::vector<Vertex>& outVertices,
     std::vector<unsigned int>& outIndices,
     int curveResolution, // number of points sampled along each Bézier curve segment.
     int radialDivisions  // number of rotational steps around the Y-axis to create the 3D mesh

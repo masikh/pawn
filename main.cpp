@@ -3,7 +3,6 @@
 #include "shaders.h"
 #include "setupGLFW.h"
 #include "createTextureBase.h"
-#include "pawn_coordinates.h"
 #include "bezierCurvesPawn.h"
 #include "marble_downsized.h"
 
@@ -28,15 +27,12 @@ class Pawn {
         std::vector<unsigned int> indices;
         GLuint textureMarble{}, textureBase{};
         GLuint VAO{}, VBO{}, EBO{};
-        int profileSize = static_cast<int>(pawn_profile.size());
 
         unsigned char* pixelBufBase = nullptr;
 
         int generatedTextureWidth = 0, generatedTextureHeight = 0, generatedTextureChannels = 0;
 
-        explicit Pawn()
-            : coordinates(pawn_profile) {
-            // computePawnCoordinates();
+        explicit Pawn() {
             generatePawnMesh(vertices, indices);
             addFlatSquareQuad();
             loadTextureFromMemory(marble_jpg, marble_jpg_len, textureMarble, "marble_downsized.h");
@@ -58,76 +54,6 @@ class Pawn {
         }
 
     private:
-        const std::vector<std::pair<float, float>>& coordinates;
-
-        void computePawnCoordinates() {
-            constexpr int segments = 360;
-            constexpr float DEG2RAD = M_PI / 180.0f;
-
-            float maxY = 0.0f;
-            for (const auto& val : coordinates | std::views::values)
-                if (val > maxY) maxY = val;
-
-            // Precompute profile normals for revolution (approximate derivative along profile curve)
-            std::vector<glm::vec2> profileNormals(profileSize);
-            for (int j = 0; j < profileSize; ++j) {
-                int prev = std::max(0, j - 1);
-                int next = std::min(profileSize - 1, j + 1);
-
-                float dx = coordinates[next].first - coordinates[prev].first;
-                float dy = coordinates[next].second - coordinates[prev].second;
-
-                glm::vec2 tangent(dx, dy);
-                glm::vec2 normal = glm::normalize(glm::vec2(-dy, dx));
-                profileNormals[j] = normal;
-            }
-
-            for (int i = 0; i <= segments; ++i) {
-                float theta = static_cast<float>(i) * DEG2RAD;
-                float cosTheta = std::cos(theta);
-                float sinTheta = std::sin(theta);
-
-                for (int j = 0; j < profileSize; ++j) {
-                    const auto& coord = coordinates[j];
-                    float r = coord.first;
-                    float y = coord.second;
-
-                    float x = r * cosTheta;
-                    float z = r * sinTheta;
-
-                    float u = static_cast<float>(i) / segments;
-                    float v = y / maxY;
-
-                    float texID = (j >= profileSize - 3) ? 1.0f : 0.0f;
-
-                    // Compute 3D normal from 2D profile normal rotated around Y-axis
-                    const glm::vec2& n2d = profileNormals[j];
-                    glm::vec3 normal(
-                        n2d.x * cosTheta,
-                        n2d.y,
-                        n2d.x * sinTheta
-                    );
-
-                    vertices.push_back({x, y, z, u, v, texID, normal.x, normal.y, normal.z});
-                }
-            }
-
-            for (int i = 0; i < segments; ++i) {
-                for (int j = 0; j < profileSize - 1; ++j) {
-                    int current = i * profileSize + j;
-                    int next = (i + 1) * profileSize + j;
-
-                    indices.push_back(current);
-                    indices.push_back(next);
-                    indices.push_back(current + 1);
-
-                    indices.push_back(next);
-                    indices.push_back(next + 1);
-                    indices.push_back(current + 1);
-                }
-            }
-        }
-
         void addFlatSquareQuad() {
             auto startIndex = static_cast<unsigned int>(vertices.size());
 
