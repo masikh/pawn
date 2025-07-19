@@ -61,13 +61,17 @@ void generatePawnMesh(
     for (int i = 0; i < rows; ++i) {
         float v = static_cast<float>(i) / static_cast<float>((rows - 1));
 
-        // Dynamic texID assignment based on the height of the pawn (v)
-        float texID = 0.0f;
-        /*
-        if (v < 0.33f) texID = 0.0f;
-        else if (v < 0.66f) texID = 1.0f;
-        else texID = 2.0f;
-        */
+        // Remap v to repeat the same texture in two vertical regions
+        float vAdjusted;
+        if (v <= 0.0575f) {
+            // Map [0.0, 0.0575] → [0.0, 1.0]
+            vAdjusted = v / 0.0575f;
+        } else {
+            // Map [0.0575, 1.0] → [0.0, 1.0]
+            vAdjusted = (v - 0.0575f) / (1.0f - 0.0575f);
+        }
+
+        float texID = 0.0f; // Always use texture1
 
         const auto& p = profilePoints[i];
         const auto& dp = profileDerivatives[i];
@@ -103,7 +107,7 @@ void generatePawnMesh(
             vert.y = y;
             vert.z = z;
             vert.u = u;
-            vert.v = v;
+            vert.v = vAdjusted;
             vert.texID = texID;
             vert.nx = normal.x;
             vert.ny = normal.y;

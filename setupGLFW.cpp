@@ -76,11 +76,12 @@ float rotateAndSetLights(float position_x) {
     model = glm::rotate(model, glm::radians(static_cast<float>(angle_z)), glm::vec3(0.0f, 0.0f, 1.0f));
 
     float wiggle_y = 0.25f + 0.25f * static_cast<float>(sin((2.0f * M_PI / 7.0f) * time));
+    float wiggle_z = 2.5f + 0.5f * static_cast<float>(sin((2.0f * M_PI / 7.0f) * time));
 
     glm::vec3 cameraPos(0.0f, wiggle_y, 2.5f);  // Matches the inverse of the view matrix
     glUniform3f(viewPosLoc, cameraPos.x, cameraPos.y, cameraPos.z);
 
-    glm::mat4 view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, wiggle_y, -2.5f));
+    glm::mat4 view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, wiggle_y, -wiggle_z));
     glm::mat4 projection = glm::perspective(glm::radians(45.0f), 800.f / 600.f, 0.1f, 100.0f);
     glm::mat4 mvp = projection * view * model;
 
