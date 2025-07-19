@@ -9,8 +9,11 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-
 #include <iostream>
+
+struct positionXYZ {
+    float x, y, z, speed;
+};
 
 inline bool isFullscreen = false;
 inline int windowedX = 100, windowedY = 100;  // Starting position
@@ -18,5 +21,8 @@ inline int windowedWidth = 800, windowedHeight = 600;
 
 GLFWwindow* initWindow(GLFWmonitor** outMonitor, const GLFWvidmode** outMode);
 void toggleFullscreen(GLFWwindow* window, GLFWmonitor* monitor, const GLFWvidmode* mode, bool& isFullscreen);
-float rotateAndSetLights(float position_x);
+
+positionXYZ updateMovementAndMatrices(positionXYZ positionXYZ);
+void setLighting();
+
 #endif //SETUPGLFW_H

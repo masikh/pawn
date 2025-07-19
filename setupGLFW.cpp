@@ -60,42 +60,87 @@ void toggleFullscreen(GLFWwindow* window, GLFWmonitor* monitor, const GLFWvidmod
     isFullscreen = !isFullscreen;
 }
 
-float rotateAndSetLights(float position_x) {
-    double time = glfwGetTime();
+void setLighting() {
+    glUniform3f(lightPos1Loc, -10.0f,  0.0f, 0.0f);
+    glUniform3f(lightPos2Loc,   0.0f, 10.0f, 0.0f);
+
+    float brightness = 2.0f;
+    glUniform3f(lightColorLoc,
+        std::min(1.0f, brightness * 1.0f),
+        std::min(1.0f, brightness * 1.0f),
+        std::min(1.0f, brightness * 1.0f));
+}
+
+positionXYZ updateMovementAndMatrices(positionXYZ positionXYZ) {
+    static double lastRawTime = glfwGetTime();
+    static float smoothTime = 0.0f;
+
+    double currentRawTime = glfwGetTime();
+    float deltaTime = static_cast<float>(currentRawTime - lastRawTime);
+    lastRawTime = currentRawTime;
+
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    double angle_x = 180.0 + 50.0 * sin(time * 0.3);
-    double angle_y = 60.0 + 60.0 * sin(time * 0.5);
-    double angle_z = 90.0 + 90.0 * cos(time * 0.25);
+    // --- Smooth, fluctuating speed ---
+    // Faster-changing speed
+    float baseSpeed = 1.8f
+                    + 0.6f * sin(currentRawTime * 0.8f)     // was 0.15f
+                    + 0.2f * sin(currentRawTime * 3.5f + 1.0f); // was 0.5f
+    baseSpeed = glm::clamp(baseSpeed, 1.8f, 4.5f);
+    positionXYZ.speed = baseSpeed;
 
-    position_x = 1.3f * static_cast<float>(sin(time * 0.25f));
+    // --- Accumulate smoothTime with fluctuating speed ---
+    smoothTime += deltaTime * baseSpeed;
+    float t = smoothTime;
 
-    glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(position_x, 0.0f, 0.0f));
+    // Move towards us or back
+    float z_mod = 2.5f + 1.5f * sin((t * 0.4f) + M_PI);
+
+    // --- Non-predictable smooth x movement (using integrated time) ---
+    // --- Adaptive horizontal movement based on depth (no clamp) ---
+    float maxXAmplitude = 2.2f * glm::smoothstep(1.0f, 4.0f, z_mod); // 0 → 1 as z increases
+    float raw_x =
+        sin(t * 0.25f) * 0.3f +
+        sin(t * 0.12f + 1.0f) * 0.6f +
+        sin(t * 0.05f - 1.0f) * 0.5f;
+
+    // Estimate and subtract average offset
+    float bias = 0.0f;  // fine-tuning
+    positionXYZ.x = (raw_x - bias) * maxXAmplitude;
+
+    // Smooth y wiggle
+    float maxYAmplitude = 0.5f * glm::smoothstep(1.0f, 4.0f, z_mod); // scales with depth
+
+    float raw_y =
+        sin(t * 0.35f) * 0.5f +
+        sin(t * 0.13f + 0.8f) * 0.3f +
+        sin(t * 0.07f - 0.5f) * 0.2f;
+
+    float y_bias = 0.0f;  // fine-tuning
+    float y_mod = (raw_y - y_bias) * maxYAmplitude;
+
+    y_mod = glm::clamp(y_mod, 0.0f, 0.5f);
+    z_mod = glm::clamp(z_mod, 1.0f, 4.0f);
+
+    // --- Smooth rotations using t ---
+    double angle_x = 180.0 + 50.0 * sin(t * 0.3);
+    double angle_y = 60.0 + 60.0 * sin(t * 0.5 + sin(t * 0.07));
+    double angle_z = 90.0 + 90.0 * cos(t * 0.25 + cos(t * 0.05));
+
+    glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(positionXYZ.x, 0.0f, 0.0f));
     model = glm::rotate(model, glm::radians(static_cast<float>(angle_x)), glm::vec3(1.0f, 0.0f, 0.0f));
     model = glm::rotate(model, glm::radians(static_cast<float>(angle_y)), glm::vec3(0.0f, 1.0f, 0.0f));
     model = glm::rotate(model, glm::radians(static_cast<float>(angle_z)), glm::vec3(0.0f, 0.0f, 1.0f));
 
-    float wiggle_y = 0.25f + 0.25f * static_cast<float>(sin((2.0f * M_PI / 7.0f) * time));
-    float wiggle_z = 2.5f + 0.5f * static_cast<float>(sin((2.0f * M_PI / 7.0f) * time));
-
-    glm::vec3 cameraPos(0.0f, wiggle_y, 2.5f);  // Matches the inverse of the view matrix
+    glm::vec3 cameraPos(0.0f, y_mod, z_mod);
     glUniform3f(viewPosLoc, cameraPos.x, cameraPos.y, cameraPos.z);
 
-    glm::mat4 view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, wiggle_y, -wiggle_z));
+    glm::mat4 view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, y_mod, -z_mod));
     glm::mat4 projection = glm::perspective(glm::radians(45.0f), 800.f / 600.f, 0.1f, 100.0f);
     glm::mat4 mvp = projection * view * model;
 
     glUniformMatrix4fv(mvpLoc, 1, GL_FALSE, glm::value_ptr(mvp));
     glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
 
-    glUniform3f(lightPos1Loc, -10.0f,  0.0f, 0.0f);
-    glUniform3f(lightPos2Loc,   0.0f, 10.0f, 0.0f);
-
-    float brightness = 2.0f; // 2x brighter
-    glUniform3f(lightColorLoc,
-        std::min(1.0f, brightness * 1.0f),
-        std::min(1.0f, brightness * 1.0f),
-        std::min(1.0f, brightness * 1.0f));
-
-    return position_x;
+    return positionXYZ;
 }

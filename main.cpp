@@ -173,8 +173,9 @@ int main() {
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    setLighting();  // set two light spots on the scene
 
-    float position_x = 0.0f;
+    positionXYZ positionXYZ = {0.0f, 0.0f, 0.0f};
 
     while (!glfwWindowShouldClose(window)) {
         if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS) {
@@ -190,7 +191,7 @@ int main() {
             glfwSetWindowShouldClose(window, GL_TRUE);
         }
 
-        position_x = rotateAndSetLights(position_x);
+        positionXYZ = updateMovementAndMatrices(positionXYZ);
 
         pawn.draw();
 
