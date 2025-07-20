@@ -1,7 +1,6 @@
+#include "textures/stb_image.h"
+#include <GL/glew.h>
 #include <iostream>
-#include "carpet.h"
-
-#include "stb_image.h"
 
 #define NANOSVG_IMPLEMENTATION
 #define NANOSVG_ALL_COLOR_KEYWORDS
@@ -9,7 +8,9 @@
 #define NANOSVGRAST_IMPLEMENTATION
 #include "nanosvgrast.h"
 
-const int tileCountX = 120, tileCountY = 68;
+#include "createTextureBase.h"
+#include "carpet.h"
+
 
 unsigned char* rasterizeSVG(const char* logo_svg, int targetWidth, int targetHeight) {
     char* mutableSvg = new char[logo_svg_len + 1];
@@ -95,7 +96,26 @@ void blendCenter(unsigned char* dst, int dstW, int dstH, unsigned char* src, int
     }
 }
 
-void createTexture(unsigned char*& bigTex, int& width, int& height, int& channels, bool logo) {
+void loadGeneratedTexture(GLuint& textureID, const unsigned char* pixelBuf, int width, int height, bool logo) {
+    glGenTextures(1, &textureID);
+    glBindTexture(GL_TEXTURE_2D, textureID);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixelBuf);
+    glGenerateMipmap(GL_TEXTURE_2D);
+
+    std::cout << "✅ Loaded generated texture:\n";
+    std::cout << "   → Logo: " << (logo ? "True" : "False") << "\n";
+    std::cout << "   → Dimensions: " << width << "x" << height << "\n";
+    std::cout << "   → Channels: 4\n";
+    std::cout << "   → Format: RGBA\n";
+}
+
+void createTexture(GLuint &textureId, int &width, int &height, int &channels, bool logo) {
     /*
      * Usage:
      *     unsigned char* pixelBuf = nullptr;
@@ -104,9 +124,9 @@ void createTexture(unsigned char*& bigTex, int& width, int& height, int& channel
      *     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixelBuf);
      */
 
-    bigTex = stitchTextures(width, height, channels);
+    pixelBuf = stitchTextures(width, height, channels);
 
-    if (!bigTex) {
+    if (!pixelBuf) {
         return;
     }
 
@@ -123,14 +143,17 @@ void createTexture(unsigned char*& bigTex, int& width, int& height, int& channel
         delete[] svgCopy;
 
         if (!svgBuffer) {
-            delete[] bigTex;
-            bigTex = nullptr;
+            delete[] pixelBuf;
+            pixelBuf = nullptr;
             return;
         }
 
         // Blend the SVG into the center
-        blendCenter(bigTex, width, height, svgBuffer, svgWidth, svgHeight);
+        blendCenter(pixelBuf, width, height, svgBuffer, svgWidth, svgHeight);
 
         delete[] svgBuffer;
     }
+
+    // Load texture to GPU memory
+    loadGeneratedTexture(textureId, pixelBuf, width, height, logo);
 }

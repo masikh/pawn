@@ -1,3 +1,5 @@
+#define STB_IMAGE_IMPLEMENTATION
+#include "textures/stb_image.h"
 #include "bezierPawn/bezierCurvesPawn.h"
 #include "textures/createTextureBase.h"
 #include "textures/marble.h"
@@ -66,19 +68,12 @@ class DrawScene {
         glfwObject pawn{};
 
         GLuint textureMarble{}, textureBase{}, textureFloor{};
-        unsigned char* pixelBufBase = nullptr;
-        unsigned char* pixelBufFloor = nullptr;
-
-        int generatedTextureWidth = 0, generatedTextureHeight = 0, generatedTextureChannels = 0;
-        positionXYZ positionXYZ = {0.0f, 0.0f, 0.0f};
 
         explicit DrawScene() {
             // Load textures
             loadTextureFromMemory(marble_jpg, marble_jpg_len, textureMarble, "marble.h");
-            createTexture(pixelBufBase, generatedTextureWidth, generatedTextureHeight, generatedTextureChannels, true);
-            createTexture(pixelBufFloor, generatedTextureWidth, generatedTextureHeight, generatedTextureChannels, false);
-            loadGeneratedTexture(textureBase, pixelBufBase, generatedTextureWidth, generatedTextureHeight);
-            loadGeneratedTexture(textureFloor, pixelBufFloor, generatedTextureWidth, generatedTextureHeight);
+            createTexture(textureBase, generatedTextureWidth, generatedTextureHeight, generatedTextureChannels, true);
+            createTexture(textureFloor,generatedTextureWidth, generatedTextureHeight, generatedTextureChannels, false);
 
             // Create the Pawn and send vertices and indices to GPU
             generatePawnMesh(pawn.vertices, pawn.indices);
@@ -90,12 +85,8 @@ class DrawScene {
             setLighting();
         }
 
-        void updatePawnMeshPositionXYZ() {
-            pawn.positionXYZ = updateMovementAndMatrices(pawn.positionXYZ);
-        }
-
         void draw() {
-            updatePawnMeshPositionXYZ();
+            pawn.positionXYZ = updateMovementAndMatrices(pawn.positionXYZ);
 
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, pawn.textures[0]);

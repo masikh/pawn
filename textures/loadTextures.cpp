@@ -1,7 +1,7 @@
 //
 // Created by Robert Nagtegaal on 20/07/2025.
 //
-#define STB_IMAGE_IMPLEMENTATION
+
 #include "textures/stb_image.h"
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
@@ -44,22 +44,4 @@ void loadTextureFromMemory(const unsigned char* data, size_t len, GLuint& textur
     glTexImage2D(GL_TEXTURE_2D, 0, (GLint) internalFormat, width, height, 0, format, GL_UNSIGNED_BYTE, imgData);
     glGenerateMipmap(GL_TEXTURE_2D);
     stbi_image_free(imgData);
-}
-
-void loadGeneratedTexture(GLuint& textureID, const unsigned char* pixelData, int width, int height) {
-    glGenTextures(1, &textureID);
-    glBindTexture(GL_TEXTURE_2D, textureID);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixelData);
-    glGenerateMipmap(GL_TEXTURE_2D);
-
-    std::cout << "✅ Loaded generated texture:\n";
-    std::cout << "   → Dimensions: " << width << "x" << height << "\n";
-    std::cout << "   → Channels: 4\n";
-    std::cout << "   → Format: RGBA\n";
 }
