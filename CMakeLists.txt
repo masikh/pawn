@@ -35,6 +35,8 @@ add_executable(Pawn main.cpp
         shaders/shaders.h
         glfw/setupGLFW.cpp
         glfw/setupGLFW.h
+        textures/loadTextures.cpp
+        textures/loadTextures.h
 )
 
 # Link libraries: GLFW, GLEW, OpenGL framework (required on macOS)
@@ -49,6 +51,7 @@ target_link_libraries(Pawn
 
 # Post-build: Strip symbols from the binary and compress
 add_custom_command(TARGET Pawn POST_BUILD
-        COMMAND strip -u -r $<TARGET_FILE:Pawn>
+        # COMMAND strip -u -r $<TARGET_FILE:Pawn>
+        COMMAND echo "Build completed"
         COMMENT "Stripping and compressing binary with UPX (Release build)"
 )

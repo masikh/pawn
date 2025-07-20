@@ -5,6 +5,28 @@
 #include "setupGLFW.h"
 #include "../shaders/shaders.h"
 
+bool isKeyPressed(GLFWwindow* window, std::initializer_list<int> keys) {
+    for (int key : keys) {
+        if (glfwGetKey(window, key) == GLFW_PRESS)
+            return true;
+    }
+    return false;
+}
+
+void checkKeyBoard(GLFWwindow* window, GLFWmonitor* monitor, const GLFWvidmode* mode) {
+    if (isKeyPressed(window, {GLFW_KEY_F})) {
+        if (!fWasPressed) {
+            toggleFullscreen(window, monitor, mode, isFullscreen);
+            fWasPressed = !fWasPressed;
+        }
+    } else {
+        fWasPressed = false;
+    }
+
+    if (isKeyPressed(window, {GLFW_KEY_ESCAPE, GLFW_KEY_Q})) {
+        glfwSetWindowShouldClose(window, GL_TRUE);
+    }
+}
 
 GLFWwindow* initWindow(GLFWmonitor** outMonitor, const GLFWvidmode** outMode) {
     if (!glfwInit()) {
@@ -61,6 +83,10 @@ void toggleFullscreen(GLFWwindow* window, GLFWmonitor* monitor, const GLFWvidmod
 }
 
 void setLighting() {
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
     glUniform3f(lightPos1Loc, -10.0f,  0.0f, 0.0f);
     glUniform3f(lightPos2Loc,   0.0f, 10.0f, 0.0f);
 
@@ -143,4 +169,19 @@ positionXYZ updateMovementAndMatrices(positionXYZ positionXYZ) {
     glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
 
     return positionXYZ;
+}
+
+void limitFrameRate() {
+    auto now = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> frameTime = now - lastFrameTime;
+
+    if (frameTime.count() < FRAME_DURATION) {
+        double sleepTime = FRAME_DURATION - frameTime.count();
+        std::this_thread::sleep_for(std::chrono::duration<double>(sleepTime));
+    } else if (frameTime.count() > FRAME_DURATION + 0.001) { // Allow small margin
+        int actualFPS = static_cast<int>(1.0 / frameTime.count());
+        std::cout << "[Warning] Frame drop detected! FPS: " << actualFPS << "\n";
+    }
+
+    lastFrameTime = std::chrono::high_resolution_clock::now(); // Reset for next frame
 }

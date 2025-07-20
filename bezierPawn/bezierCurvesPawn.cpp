@@ -144,4 +144,24 @@ void generatePawnMesh(
             outIndices.push_back(next + 1);
         }
     }
+
+    // ---- Step 4: Add a flat square at the bottom for the 'pawn-base' texture
+    auto startIndex = static_cast<unsigned int>(outVertices.size());
+
+    glm::vec3 normal = glm::vec3(0.0f, -1.0f, 0.0f);
+
+    std::vector<Vertex> quadVerts = {
+        { -0.5f, 0.999999f, -0.5f, 0.0f, 0.0f, 1.0f, normal.x, normal.y, normal.z }, // Bottom-left
+        {  0.5f, 0.999999f, -0.5f, 1.0f, 0.0f, 1.0f, normal.x, normal.y, normal.z }, // Bottom-right
+        {  0.5f, 0.999999f,  0.5f, 1.0f, 1.0f, 1.0f, normal.x, normal.y, normal.z }, // Top-right
+        { -0.5f, 0.999999f,  0.5f, 0.0f, 1.0f, 1.0f, normal.x, normal.y, normal.z }, // Top-left
+    };
+
+    std::vector quadInds = {
+        startIndex,     startIndex + 1, startIndex + 2,
+        startIndex + 2, startIndex + 3, startIndex
+    };
+
+    outVertices.insert(outVertices.end(), quadVerts.begin(), quadVerts.end());
+    outIndices.insert(outIndices.end(), quadInds.begin(), quadInds.end());
 }
