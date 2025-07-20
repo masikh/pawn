@@ -1,9 +1,9 @@
 #define STB_IMAGE_IMPLEMENTATION
-#include "textures/stb_image.h"
+#include "externalHeaders/stb_image.h"
 #include "bezierPawn/bezierCurvesPawn.h"
-#include "textures/createTextureBase.h"
-#include "textures/marble.h"
+#include "textures/generateTexture.h"
 #include "textures/loadTextures.h"
+#include "textures/marble.h"
 
 #include "shaders/shaders.h"
 #include "glfw/setupGLFW.h"
@@ -72,8 +72,8 @@ class DrawScene {
         explicit DrawScene() {
             // Load textures
             loadTextureFromMemory(marble_jpg, marble_jpg_len, textureMarble, "marble.h");
-            createTexture(textureBase, generatedTextureWidth, generatedTextureHeight, generatedTextureChannels, true);
-            createTexture(textureFloor,generatedTextureWidth, generatedTextureHeight, generatedTextureChannels, false);
+            generateTexture(textureBase, true);
+            generateTexture(textureFloor, false);
 
             // Create the Pawn and send vertices and indices to GPU
             generatePawnMesh(pawn.vertices, pawn.indices);

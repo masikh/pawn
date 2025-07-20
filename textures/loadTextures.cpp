@@ -2,7 +2,7 @@
 // Created by Robert Nagtegaal on 20/07/2025.
 //
 
-#include "textures/stb_image.h"
+#include "../externalHeaders/stb_image.h"
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <iostream>

@@ -1,14 +1,14 @@
-#include "textures/stb_image.h"
+#include "externalHeaders/stb_image.h"
 #include <GL/glew.h>
 #include <iostream>
 
 #define NANOSVG_IMPLEMENTATION
 #define NANOSVG_ALL_COLOR_KEYWORDS
-#include "nanosvg.h"
+#include "../externalHeaders/nanosvg.h"
 #define NANOSVGRAST_IMPLEMENTATION
-#include "nanosvgrast.h"
+#include "../externalHeaders/nanosvgrast.h"
 
-#include "createTextureBase.h"
+#include "generateTexture.h"
 #include "carpet.h"
 
 
@@ -115,7 +115,7 @@ void loadGeneratedTexture(GLuint& textureID, const unsigned char* pixelBuf, int 
     std::cout << "   → Format: RGBA\n";
 }
 
-void createTexture(GLuint &textureId, int &width, int &height, int &channels, bool logo) {
+void generateTexture(GLuint &textureId, bool logo) {
     /*
      * Usage:
      *     unsigned char* pixelBuf = nullptr;
@@ -124,7 +124,7 @@ void createTexture(GLuint &textureId, int &width, int &height, int &channels, bo
      *     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixelBuf);
      */
 
-    pixelBuf = stitchTextures(width, height, channels);
+    pixelBuf = stitchTextures(generatedTextureWidth, generatedTextureHeight, generatedTextureChannels);
 
     if (!pixelBuf) {
         return;
@@ -132,8 +132,8 @@ void createTexture(GLuint &textureId, int &width, int &height, int &channels, bo
 
     // Rasterize SVG to fit a portion of the stitched texture
     if (logo) {
-        int svgWidth = width / 2;
-        int svgHeight = height / 2;
+        int svgWidth = generatedTextureWidth / 2;
+        int svgHeight = generatedTextureHeight / 2;
 
         // Copy logo_svg (assumed const char*) to mutable buffer for NanoSVG
         char* svgCopy = new char[strlen(logo_svg) + 1];
@@ -149,11 +149,11 @@ void createTexture(GLuint &textureId, int &width, int &height, int &channels, bo
         }
 
         // Blend the SVG into the center
-        blendCenter(pixelBuf, width, height, svgBuffer, svgWidth, svgHeight);
+        blendCenter(pixelBuf, generatedTextureWidth, generatedTextureHeight, svgBuffer, svgWidth, svgHeight);
 
         delete[] svgBuffer;
     }
 
     // Load texture to GPU memory
-    loadGeneratedTexture(textureId, pixelBuf, width, height, logo);
+    loadGeneratedTexture(textureId, pixelBuf, generatedTextureWidth, generatedTextureHeight, logo);
 }

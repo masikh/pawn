@@ -10,5 +10,5 @@ inline int generatedTextureWidth = 0, generatedTextureHeight = 0, generatedTextu
 inline const int tileCountX = 120, tileCountY = 68;
 inline unsigned char* pixelBuf = nullptr;
 
-void createTexture(GLuint &textureId, int &width, int &height, int &channels, bool logo);
+void generateTexture(GLuint &textureId, bool logo);
 #endif //CREATETEXTURE_H

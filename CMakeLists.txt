@@ -27,8 +27,8 @@ link_directories(
 
 # Create the executable
 add_executable(Pawn main.cpp
-        textures/createTextureBase.cpp
-        textures/createTextureBase.h
+        textures/generateTexture.cpp
+        textures/generateTexture.h
         bezierPawn/bezierCurvesPawn.cpp
         bezierPawn/bezierCurvesPawn.h
         shaders/shaders.cpp
