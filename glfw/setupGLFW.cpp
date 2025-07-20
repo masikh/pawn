@@ -180,7 +180,8 @@ void limitFrameRate() {
         std::this_thread::sleep_for(std::chrono::duration<double>(sleepTime));
     } else if (frameTime.count() > FRAME_DURATION + 0.001) { // Allow small margin
         int actualFPS = static_cast<int>(1.0 / frameTime.count());
-        std::cout << "[Warning] Frame drop detected! FPS: " << actualFPS << "\n";
+        if (actualFPS != 0)
+            std::cout << "❌ Target of 60 FPS less then current FPS of " << actualFPS << "\n";
     }
 
     lastFrameTime = std::chrono::high_resolution_clock::now(); // Reset for next frame

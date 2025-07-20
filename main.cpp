@@ -16,10 +16,11 @@ class DrawScene {
     public:
         std::vector<Vertex> verticesPawn;
         std::vector<unsigned int> indicesPawn;
-        GLuint textureMarble{}, textureBase{};
+        GLuint textureMarble{}, textureBase{}, textureFloor{};
         GLuint VAO{}, VBO{}, EBO{};
 
         unsigned char* pixelBufBase = nullptr;
+        unsigned char* pixelBufFloor = nullptr;
 
         int generatedTextureWidth = 0, generatedTextureHeight = 0, generatedTextureChannels = 0;
         positionXYZ positionXYZ = {0.0f, 0.0f, 0.0f};
@@ -31,8 +32,10 @@ class DrawScene {
 
             // Load textures
             loadTextureFromMemory(marble_jpg, marble_jpg_len, textureMarble, "marble.h");
-            createTextureBase(pixelBufBase, generatedTextureWidth, generatedTextureHeight, generatedTextureChannels);
+            createTexture(pixelBufBase, generatedTextureWidth, generatedTextureHeight, generatedTextureChannels, true);
+            createTexture(pixelBufFloor, generatedTextureWidth, generatedTextureHeight, generatedTextureChannels, false);
             loadGeneratedTexture(textureBase, pixelBufBase, generatedTextureWidth, generatedTextureHeight);
+            loadGeneratedTexture(textureFloor, pixelBufFloor, generatedTextureWidth, generatedTextureHeight);
 
             // Setup two spots on the scene
             setLighting();

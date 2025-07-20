@@ -95,7 +95,7 @@ void blendCenter(unsigned char* dst, int dstW, int dstH, unsigned char* src, int
     }
 }
 
-void createTextureBase(unsigned char*& bigTex, int& width, int& height, int& channels) {
+void createTexture(unsigned char*& bigTex, int& width, int& height, int& channels, bool logo) {
     /*
      * Usage:
      *     unsigned char* pixelBuf = nullptr;
@@ -111,24 +111,26 @@ void createTextureBase(unsigned char*& bigTex, int& width, int& height, int& cha
     }
 
     // Rasterize SVG to fit a portion of the stitched texture
-    int svgWidth = width / 2;
-    int svgHeight = height / 2;
+    if (logo) {
+        int svgWidth = width / 2;
+        int svgHeight = height / 2;
 
-    // Copy logo_svg (assumed const char*) to mutable buffer for NanoSVG
-    char* svgCopy = new char[strlen(logo_svg) + 1];
-    strcpy(svgCopy, logo_svg);
+        // Copy logo_svg (assumed const char*) to mutable buffer for NanoSVG
+        char* svgCopy = new char[strlen(logo_svg) + 1];
+        strcpy(svgCopy, logo_svg);
 
-    unsigned char* svgBuffer = rasterizeSVG(svgCopy, svgWidth, svgHeight);
-    delete[] svgCopy;
+        unsigned char* svgBuffer = rasterizeSVG(svgCopy, svgWidth, svgHeight);
+        delete[] svgCopy;
 
-    if (!svgBuffer) {
-        delete[] bigTex;
-        bigTex = nullptr;
-        return;
+        if (!svgBuffer) {
+            delete[] bigTex;
+            bigTex = nullptr;
+            return;
+        }
+
+        // Blend the SVG into the center
+        blendCenter(bigTex, width, height, svgBuffer, svgWidth, svgHeight);
+
+        delete[] svgBuffer;
     }
-
-    // Blend the SVG into the center
-    blendCenter(bigTex, width, height, svgBuffer, svgWidth, svgHeight);
-
-    delete[] svgBuffer;
 }

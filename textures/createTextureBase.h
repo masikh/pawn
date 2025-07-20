@@ -5,6 +5,6 @@
 #ifndef CREATETEXTURE_H
 #define CREATETEXTURE_H
 
-void createTextureBase(unsigned char*& bigTex, int& width, int& height, int& channels);
+void createTexture(unsigned char*& bigTex, int& width, int& height, int& channels, bool logo);
 
 #endif //CREATETEXTURE_H
