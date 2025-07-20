@@ -11,14 +11,61 @@
 #include <vector>
 #include <chrono>
 
+struct glfwObject {
+    /*
+     * Struct to hold a 3d object and all its needs
+     * like textures, shaders, etc..
+     */
+
+    // Vertices and indices
+    std::vector<Vertex> vertices;
+    std::vector<unsigned int> indices;
+
+    // Textures
+    std::vector<GLuint> textures;
+
+    // VAO, VBO and EBO
+    GLuint VAO{}, VBO{}, EBO{};
+
+    // Current object position and speed
+    positionXYZ positionXYZ = {0.0f, 0.0f, 0.0f, 0.0f};
+
+    // Shader program (to be implemented...)
+    GLuint shaderProgram;
+
+    void uploadToGPU() {
+        glGenVertexArrays(1, &VAO);
+        glGenBuffers(1, &VBO);
+        glGenBuffers(1, &EBO);
+
+        glBindVertexArray(VAO);
+        glBindBuffer(GL_ARRAY_BUFFER, VBO);
+        glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(vertices.size() * sizeof(Vertex)), vertices.data(), GL_STATIC_DRAW);
+
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLsizeiptr>(indices.size() * sizeof(unsigned int)), indices.data(), GL_STATIC_DRAW);
+
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(0));                      // aPos
+        glEnableVertexAttribArray(0);
+
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(3 * sizeof(float)));     // aTexCoord
+        glEnableVertexAttribArray(1);
+
+        glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(5 * sizeof(float)));     // aTexID
+        glEnableVertexAttribArray(2);
+
+        glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(6 * sizeof(float)));     // aNormal
+        glEnableVertexAttribArray(3);
+
+        glBindVertexArray(0);
+    }
+};
 
 class DrawScene {
     public:
-        std::vector<Vertex> verticesPawn;
-        std::vector<unsigned int> indicesPawn;
-        GLuint textureMarble{}, textureBase{}, textureFloor{};
-        GLuint VAO{}, VBO{}, EBO{};
+        glfwObject pawn{};
 
+        GLuint textureMarble{}, textureBase{}, textureFloor{};
         unsigned char* pixelBufBase = nullptr;
         unsigned char* pixelBufFloor = nullptr;
 
@@ -26,10 +73,6 @@ class DrawScene {
         positionXYZ positionXYZ = {0.0f, 0.0f, 0.0f};
 
         explicit DrawScene() {
-            // Create the Pawn and send vertices and indices to GPU
-            generatePawnMesh(verticesPawn, indicesPawn);
-            pawnMeshToGPU();
-
             // Load textures
             loadTextureFromMemory(marble_jpg, marble_jpg_len, textureMarble, "marble.h");
             createTexture(pixelBufBase, generatedTextureWidth, generatedTextureHeight, generatedTextureChannels, true);
@@ -37,53 +80,31 @@ class DrawScene {
             loadGeneratedTexture(textureBase, pixelBufBase, generatedTextureWidth, generatedTextureHeight);
             loadGeneratedTexture(textureFloor, pixelBufFloor, generatedTextureWidth, generatedTextureHeight);
 
+            // Create the Pawn and send vertices and indices to GPU
+            generatePawnMesh(pawn.vertices, pawn.indices);
+            pawn.uploadToGPU();
+            pawn.textures.push_back(textureMarble);
+            pawn.textures.push_back(textureBase);
+
             // Setup two spots on the scene
             setLighting();
         }
 
         void updatePawnMeshPositionXYZ() {
-            positionXYZ = updateMovementAndMatrices(positionXYZ);
+            pawn.positionXYZ = updateMovementAndMatrices(pawn.positionXYZ);
         }
 
         void draw() {
             updatePawnMeshPositionXYZ();
 
             glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, textureMarble);
+            glBindTexture(GL_TEXTURE_2D, pawn.textures[0]);
 
             glActiveTexture(GL_TEXTURE1);
-            glBindTexture(GL_TEXTURE_2D, textureBase);
+            glBindTexture(GL_TEXTURE_2D, pawn.textures[1]);
 
-            glBindVertexArray(VAO);
-            glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indicesPawn.size()), GL_UNSIGNED_INT, nullptr);
-        }
-
-    private:
-        void pawnMeshToGPU() {
-            glGenVertexArrays(1, &VAO);
-            glGenBuffers(1, &VBO);
-            glGenBuffers(1, &EBO);
-
-            glBindVertexArray(VAO);
-            glBindBuffer(GL_ARRAY_BUFFER, VBO);
-            glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(verticesPawn.size() * sizeof(Vertex)), verticesPawn.data(), GL_STATIC_DRAW);
-
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-            glBufferData(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLsizeiptr>(indicesPawn.size() * sizeof(unsigned int)), indicesPawn.data(), GL_STATIC_DRAW);
-
-            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(0));                      // aPos
-            glEnableVertexAttribArray(0);
-
-            glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(3 * sizeof(float)));     // aTexCoord
-            glEnableVertexAttribArray(1);
-
-            glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(5 * sizeof(float)));     // aTexID
-            glEnableVertexAttribArray(2);
-
-            glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(6 * sizeof(float)));     // aNormal
-            glEnableVertexAttribArray(3);
-
-            glBindVertexArray(0);
+            glBindVertexArray(pawn.VAO);
+            glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(pawn.indices.size()), GL_UNSIGNED_INT, nullptr);
         }
 };
 

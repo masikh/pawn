@@ -54,6 +54,7 @@ GLuint createShaderProgram() {
 
     const char* fragmentShaderSource = R"(
         #version 330 core
+
         in vec2 TexCoord;
         in float TexID;
         in vec3 WorldPos;
