@@ -36,7 +36,7 @@ curvePoint evaluateBezierDerivative(const Curve& c, float t) {
 
 // ---- Step 2–3: Generate mesh from curves ----
 void generatePawnMesh(
-    std::vector<Vertex>& outVertices,
+    std::vector<glfwObject::Vertex>& outVertices,
     std::vector<unsigned int>& outIndices,
     int curveResolution, // number of points sampled along each Bézier curve segment.
     int radialDivisions  // number of rotational steps around the Y-axis to create the 3D mesh
@@ -114,7 +114,7 @@ void generatePawnMesh(
             // Normal = cross product
             glm::vec3 normal = glm::normalize(glm::cross(dtheta, dt));
 
-            Vertex vert{};
+            glfwObject::Vertex vert{};
             vert.x = x;
             vert.y = y;
             vert.z = z;
@@ -150,7 +150,7 @@ void generatePawnMesh(
 
     glm::vec3 normal = glm::vec3(0.0f, -1.0f, 0.0f);
 
-    std::vector<Vertex> quadVerts = {
+    std::vector<glfwObject::Vertex> quadVerts = {
         { -0.5f, 0.999999f, -0.5f, 0.0f, 0.0f, 1.0f, normal.x, normal.y, normal.z }, // Bottom-left
         {  0.5f, 0.999999f, -0.5f, 1.0f, 0.0f, 1.0f, normal.x, normal.y, normal.z }, // Bottom-right
         {  0.5f, 0.999999f,  0.5f, 1.0f, 1.0f, 1.0f, normal.x, normal.y, normal.z }, // Top-right

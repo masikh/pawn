@@ -97,7 +97,7 @@ void setLighting() {
         std::min(1.0f, brightness * 1.0f));
 }
 
-positionXYZ updateMovementAndMatrices(positionXYZ positionXYZ) {
+glfwObject updateMovementAndMatrices(glfwObject object) {
     static double lastRawTime = glfwGetTime();
     static float smoothTime = 0.0f;
 
@@ -113,7 +113,7 @@ positionXYZ updateMovementAndMatrices(positionXYZ positionXYZ) {
                     + 0.6f * sin(currentRawTime * 0.8f)     // was 0.15f
                     + 0.2f * sin(currentRawTime * 3.5f + 1.0f); // was 0.5f
     baseSpeed = glm::clamp(baseSpeed, 1.8f, 4.5f);
-    positionXYZ.speed = baseSpeed;
+    object.speed = baseSpeed;
 
     // --- Accumulate smoothTime with fluctuating speed ---
     smoothTime += deltaTime * baseSpeed;
@@ -132,7 +132,7 @@ positionXYZ updateMovementAndMatrices(positionXYZ positionXYZ) {
 
     // Estimate and subtract average offset
     float bias = 0.0f;  // fine-tuning
-    positionXYZ.x = (raw_x - bias) * maxXAmplitude;
+    object.positionX = (raw_x - bias) * maxXAmplitude;
 
     // Smooth y wiggle
     float maxYAmplitude = 0.5f * glm::smoothstep(1.0f, 4.0f, z_mod); // scales with depth
@@ -153,7 +153,7 @@ positionXYZ updateMovementAndMatrices(positionXYZ positionXYZ) {
     double angle_y = 60.0 + 60.0 * sin(t * 0.5 + sin(t * 0.07));
     double angle_z = 90.0 + 90.0 * cos(t * 0.25 + cos(t * 0.05));
 
-    glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(positionXYZ.x, 0.0f, 0.0f));
+    glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(object.positionX, 0.0f, 0.0f));
     model = glm::rotate(model, glm::radians(static_cast<float>(angle_x)), glm::vec3(1.0f, 0.0f, 0.0f));
     model = glm::rotate(model, glm::radians(static_cast<float>(angle_y)), glm::vec3(0.0f, 1.0f, 0.0f));
     model = glm::rotate(model, glm::radians(static_cast<float>(angle_z)), glm::vec3(0.0f, 0.0f, 1.0f));
@@ -168,7 +168,7 @@ positionXYZ updateMovementAndMatrices(positionXYZ positionXYZ) {
     glUniformMatrix4fv(mvpLoc, 1, GL_FALSE, glm::value_ptr(mvp));
     glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
 
-    return positionXYZ;
+    return object;
 }
 
 void limitFrameRate() {
@@ -181,7 +181,7 @@ void limitFrameRate() {
     } else if (frameTime.count() > FRAME_DURATION + 0.001) { // Allow small margin
         int actualFPS = static_cast<int>(1.0 / frameTime.count());
         if (actualFPS != 0)
-            std::cout << "❌ Target of 60 FPS less then current FPS of " << actualFPS << "\n";
+            std::cout << "❌ Target of 60 FPS less then current " << actualFPS << " FPS.\n";
     }
 
     lastFrameTime = std::chrono::high_resolution_clock::now(); // Reset for next frame
