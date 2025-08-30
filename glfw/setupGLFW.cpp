@@ -5,27 +5,68 @@
 #include "setupGLFW.h"
 #include "../shaders/shaders.h"
 
-bool isKeyPressed(GLFWwindow* window, std::initializer_list<int> keys) {
+int getPressedKey(GLFWwindow* window, std::initializer_list<int> keys) {
     for (int key : keys) {
         if (glfwGetKey(window, key) == GLFW_PRESS)
-            return true;
+            return key;
     }
-    return false;
+    return GLFW_KEY_UNKNOWN;
 }
 
-void checkKeyBoard(GLFWwindow* window, GLFWmonitor* monitor, const GLFWvidmode* mode) {
-    if (isKeyPressed(window, {GLFW_KEY_F})) {
-        if (!fWasPressed) {
-            toggleFullscreen(window, monitor, mode, isFullscreen);
-            fWasPressed = !fWasPressed;
-        }
-    } else {
-        fWasPressed = false;
+keyboardResult checkKeyBoard(GLFWwindow* window, keyboardResult &keyboard) {
+    int key = getPressedKey(window, {GLFW_KEY_F, GLFW_KEY_Q, GLFW_KEY_ESCAPE, GLFW_KEY_1, GLFW_KEY_COMMA, GLFW_KEY_PERIOD});
+
+    switch (key) {
+        case GLFW_KEY_F: // FullScreen on/off
+            if (!keyWasPressed) {
+                keyWasPressed = true;
+                keyboard.key = GLFW_KEY_F;
+                return keyboard;
+            }
+            break;
+
+        case GLFW_KEY_ESCAPE:
+        case GLFW_KEY_Q: // Escape program
+            if (!keyWasPressed) {
+                keyWasPressed = true;
+                keyboard.key = GLFW_KEY_Q;
+                return keyboard;
+            }
+            break;
+
+        case GLFW_KEY_1: // Pawn stall rotation
+            if (!keyWasPressed) {
+                keyWasPressed = true;
+                keyboard.key = GLFW_KEY_1;
+                return keyboard;
+            }
+            break;
+
+        case GLFW_KEY_COMMA: // Decrease number of pawn radialDivisions
+            if (!keyWasPressed) {
+                keyWasPressed = true;
+                keyboard.key = GLFW_KEY_COMMA;
+                return keyboard;
+            }
+            break;
+
+        case GLFW_KEY_PERIOD: // Increase number of pawn radialDivisions
+            if (!keyWasPressed) {
+                keyWasPressed = true;
+                keyboard.key = GLFW_KEY_PERIOD;
+                return keyboard;
+            }
+            break;
+
+        case GLFW_KEY_UNKNOWN:
+        default:
+            keyWasPressed = false;
+            break;
     }
 
-    if (isKeyPressed(window, {GLFW_KEY_ESCAPE, GLFW_KEY_Q})) {
-        glfwSetWindowShouldClose(window, GL_TRUE);
-    }
+    // If we reach here, no relevant key was pressed or was already held
+    keyboard.key = GLFW_KEY_UNKNOWN;
+    return keyboard;
 }
 
 GLFWwindow* initWindow(GLFWmonitor** outMonitor, const GLFWvidmode** outMode) {
@@ -42,7 +83,7 @@ GLFWwindow* initWindow(GLFWmonitor** outMonitor, const GLFWvidmode** outMode) {
     *outMonitor = glfwGetPrimaryMonitor();
     *outMode = glfwGetVideoMode(*outMonitor);
 
-    GLFWwindow* window = glfwCreateWindow(800, 600, "Pawn Viewer", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(800, 450, "Pawn Viewer", nullptr, nullptr);
     if (!window) {
         std::cerr << "Failed to create GLFW window.\n";
         glfwTerminate();
@@ -82,76 +123,71 @@ void toggleFullscreen(GLFWwindow* window, GLFWmonitor* monitor, const GLFWvidmod
     isFullscreen = !isFullscreen;
 }
 
-void setLighting() {
+void setLighting(GLuint shaderProgram) {
+    glUseProgram(shaderProgram);
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    glUniform3f(lightPos1Loc, -10.0f,  0.0f, 0.0f);
-    glUniform3f(lightPos2Loc,   0.0f, 10.0f, 0.0f);
+    glUniform3f(glGetUniformLocation(shaderProgram, "lightPos1"), -10.0f, 0.0f, 0.0f);
+    glUniform3f(glGetUniformLocation(shaderProgram, "lightPos2"), 0.0f, 10.0f, 0.0f);
 
     float brightness = 2.0f;
-    glUniform3f(lightColorLoc,
-        std::min(1.0f, brightness * 1.0f),
-        std::min(1.0f, brightness * 1.0f),
-        std::min(1.0f, brightness * 1.0f));
+    glUniform3f(glGetUniformLocation(shaderProgram, "lightColor"),
+                std::min(1.0f, brightness * 1.0f),
+                std::min(1.0f, brightness * 1.0f),
+                std::min(1.0f, brightness * 1.0f));
+
+    glm::vec3 lightDir3 = glm::normalize(glm::vec3(0.3f, 1.0f, 0.2f));
+    glUniform3fv(glGetUniformLocation(shaderProgram, "lightDir3"), 1, glm::value_ptr(lightDir3));
 }
 
-glfwObject updateMovementAndMatrices(glfwObject object) {
+void updatePawnMovement(glfwObject& object, float aspectRatio, bool pawnRotate) {
     static double lastRawTime = glfwGetTime();
     static float smoothTime = 0.0f;
 
-    double currentRawTime = glfwGetTime();
-    float deltaTime = static_cast<float>(currentRawTime - lastRawTime);
+    const double currentRawTime = glfwGetTime();
+    float deltaTime = 0.0f;
+
+    // Only calculate deltaTime and advance time if not paused
+    if (pawnRotate) {
+        deltaTime = static_cast<float>(currentRawTime - lastRawTime);
+        smoothTime += deltaTime * object.speed;  // use previous speed or base speed
+    }
+
     lastRawTime = currentRawTime;
 
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    float t = smoothTime;
 
     // --- Smooth, fluctuating speed ---
-    // Faster-changing speed
     float baseSpeed = 1.8f
-                    + 0.6f * sin(currentRawTime * 0.8f)     // was 0.15f
-                    + 0.2f * sin(currentRawTime * 3.5f + 1.0f); // was 0.5f
+        + 0.6f * static_cast<float>(sin(currentRawTime * 0.8f))
+        + 0.2f * static_cast<float>(sin(currentRawTime * 3.5f + 1.0f));
     baseSpeed = glm::clamp(baseSpeed, 1.8f, 4.5f);
     object.speed = baseSpeed;
 
-    // --- Accumulate smoothTime with fluctuating speed ---
-    smoothTime += deltaTime * baseSpeed;
-    float t = smoothTime;
+    // --- Movement calculations using t ---
+    float z_mod = 2.5f + 1.5f * static_cast<float>(sin((t * 0.4f) + M_PI));
 
-    // Move towards us or back
-    float z_mod = 2.5f + 1.5f * sin((t * 0.4f) + M_PI);
-
-    // --- Non-predictable smooth x movement (using integrated time) ---
-    // --- Adaptive horizontal movement based on depth (no clamp) ---
-    float maxXAmplitude = 2.2f * glm::smoothstep(1.0f, 4.0f, z_mod); // 0 → 1 as z increases
+    float maxXAmplitude = 3.2f * glm::smoothstep(1.0f, 4.0f, z_mod);
     float raw_x =
         sin(t * 0.25f) * 0.3f +
         sin(t * 0.12f + 1.0f) * 0.6f +
         sin(t * 0.05f - 1.0f) * 0.5f;
+    object.positionX = raw_x * maxXAmplitude;
 
-    // Estimate and subtract average offset
-    float bias = 0.0f;  // fine-tuning
-    object.positionX = (raw_x - bias) * maxXAmplitude;
-
-    // Smooth y wiggle
-    float maxYAmplitude = 0.5f * glm::smoothstep(1.0f, 4.0f, z_mod); // scales with depth
-
+    float maxYAmplitude = 0.5f * glm::smoothstep(1.0f, 4.0f, z_mod);
     float raw_y =
         sin(t * 0.35f) * 0.5f +
         sin(t * 0.13f + 0.8f) * 0.3f +
         sin(t * 0.07f - 0.5f) * 0.2f;
 
-    float y_bias = 0.0f;  // fine-tuning
-    float y_mod = (raw_y - y_bias) * maxYAmplitude;
+    float y_mod = glm::clamp(raw_y * maxYAmplitude, 0.0f, 0.5f);
+    z_mod = glm::clamp(z_mod, 0.0f, 100.0f);
 
-    y_mod = glm::clamp(y_mod, 0.0f, 0.5f);
-    z_mod = glm::clamp(z_mod, 1.0f, 4.0f);
-
-    // --- Smooth rotations using t ---
-    double angle_x = 180.0 + 50.0 * sin(t * 0.3);
-    double angle_y = 60.0 + 60.0 * sin(t * 0.5 + sin(t * 0.07));
-    double angle_z = 90.0 + 90.0 * cos(t * 0.25 + cos(t * 0.05));
+    const double angle_x = 180.0 + 50.0 * sin(t * 0.3);
+    const double angle_y = 60.0 + 60.0 * sin(t * 0.5 + sin(t * 0.07));
+    const double angle_z = 10.0 + 90.0 * cos(t * 0.25 + cos(t * 0.05));
 
     glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(object.positionX, 0.0f, 0.0f));
     model = glm::rotate(model, glm::radians(static_cast<float>(angle_x)), glm::vec3(1.0f, 0.0f, 0.0f));
@@ -159,30 +195,48 @@ glfwObject updateMovementAndMatrices(glfwObject object) {
     model = glm::rotate(model, glm::radians(static_cast<float>(angle_z)), glm::vec3(0.0f, 0.0f, 1.0f));
 
     glm::vec3 cameraPos(0.0f, y_mod, z_mod);
-    glUniform3f(viewPosLoc, cameraPos.x, cameraPos.y, cameraPos.z);
-
     glm::mat4 view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, y_mod, -z_mod));
-    glm::mat4 projection = glm::perspective(glm::radians(45.0f), 800.f / 600.f, 0.1f, 100.0f);
+    glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspectRatio, 0.1f, 100.0f);
     glm::mat4 mvp = projection * view * model;
 
-    glUniformMatrix4fv(mvpLoc, 1, GL_FALSE, glm::value_ptr(mvp));
-    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-
-    return object;
+    glUseProgram(object.shaderProgram);
+    glUniformMatrix4fv(glGetUniformLocation(object.shaderProgram, "uMVP"), 1, GL_FALSE, glm::value_ptr(mvp));
+    glUniformMatrix4fv(glGetUniformLocation(object.shaderProgram, "uModel"), 1, GL_FALSE, glm::value_ptr(model));
+    glUniform3f(glGetUniformLocation(object.shaderProgram, "viewPos"), cameraPos.x, cameraPos.y, cameraPos.z);
 }
 
-void limitFrameRate() {
-    auto now = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> frameTime = now - lastFrameTime;
 
+void limitFrameRate(std::chrono::high_resolution_clock::time_point &lastFrame,
+                    std::chrono::high_resolution_clock::time_point &lastFrameDrop,
+                    bool &frameRateRestored, double keyPressedTime) {
+    // Suppress output on keyboard interaction
+    if (glfwGetTime() - keyPressedTime < 2.0)
+        return;
+
+    auto now = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> frameTime = now - lastFrame;
+
+    // Sleep if running faster than target
     if (frameTime.count() < FRAME_DURATION) {
-        double sleepTime = FRAME_DURATION - frameTime.count();
-        std::this_thread::sleep_for(std::chrono::duration<double>(sleepTime));
-    } else if (frameTime.count() > FRAME_DURATION + 0.001) { // Allow small margin
-        int actualFPS = static_cast<int>(1.0 / frameTime.count());
-        if (actualFPS != 0)
-            std::cout << "❌ Target of 60 FPS less then current " << actualFPS << " FPS.\n";
+        std::this_thread::sleep_for(std::chrono::duration<double>(FRAME_DURATION - frameTime.count()));
+        frameTime = std::chrono::duration<double>(FRAME_DURATION);
+        now = std::chrono::high_resolution_clock::now(); // Recalculate 'now' after sleep
     }
 
-    lastFrameTime = std::chrono::high_resolution_clock::now(); // Reset for next frame
+    lastFrame = now;
+
+    // Frame duration exceeds an acceptable threshold — it's a drop
+    if (frameTime.count() > FRAME_DURATION + 0.001) {
+        int actualFPS = static_cast<int>(1.0 / frameTime.count());
+        lastFrameDrop = now;
+        if (actualFPS > 0) std::cout << "\033[2K\r❌ Frame rate " << actualFPS << "/60 FPS." << std::flush;
+        frameRateRestored = false;
+    } else {
+        // If we've had good FPS for more than 1 second, announce recovery
+        if (!frameRateRestored && (now - lastFrameDrop > std::chrono::seconds(1))) {
+            std::cout << "\033[2K\r✅ Frame rate at 60 FPS." << std::flush;
+            frameRateRestored = true;
+        }
+        // Otherwise do nothing; we're still within the unstable 1s window
+    }
 }

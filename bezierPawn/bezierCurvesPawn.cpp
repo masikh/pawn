@@ -146,6 +146,8 @@ void generatePawnMesh(
     }
 
     // ---- Step 4: Add a flat square at the bottom for the 'pawn-base' texture
+
+    if (radialDivisions < 9) return; // Don't add bottom face if radialDivisions gets too small
     auto startIndex = static_cast<unsigned int>(outVertices.size());
 
     glm::vec3 normal = glm::vec3(0.0f, -1.0f, 0.0f);
