@@ -113,26 +113,58 @@ const char* fragmentShaderSourcePawn = R"(
     }
 )";
 
-GLuint compileShader(GLenum type, const char* source) {
+const char* textVertexShader = R"(
+    #version 330 core
+    layout(location = 0) in vec2 aPos;
+    layout(location = 1) in vec2 aTexCoord;
+
+    out vec2 TexCoord;
+    uniform mat4 projection;
+
+    void main() {
+        gl_Position = projection * vec4(aPos.xy, 0.0, 1.0);
+        TexCoord = aTexCoord;
+    }
+)";
+
+const char* textFragmentShader = R"(
+    #version 330 core
+    in vec2 TexCoord;
+    out vec4 FragColor;
+    uniform sampler2D text;
+    uniform vec3 textColor;
+    void main() {
+        float alpha = texture(text, TexCoord).r;
+        FragColor = vec4(textColor, alpha);
+    }
+)";
+
+GLuint compileShader(GLenum type, const char* source, bool text) {
     GLuint shader = glCreateShader(type);
     glShaderSource(shader, 1, &source, nullptr);
     glCompileShader(shader);
 
-    GLint success;
-    glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
-    if (!success) {
+    GLint successCompile;
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &successCompile);
+    if (!successCompile) {
         char infoLog[512];
         glGetShaderInfoLog(shader, 512, nullptr, infoLog);
-        std::cerr << "❌ Shader compilation failed:\n" << infoLog << "\n";
+        std::cerr << "❌ Shader compilation " << (text ? "(TextShader)" : "(PawnShader)") << " failed:\n" << infoLog << "\n";
     }
 
     return shader;
 }
 
-GLuint createShaderProgram() {
-    GLuint vs = compileShader(GL_VERTEX_SHADER, vertexShaderSource);
-    GLuint fs;
-    fs = compileShader(GL_FRAGMENT_SHADER, fragmentShaderSourcePawn);
+GLuint createShaderProgram(bool text) {
+    GLuint vs, fs;
+    if (text) {
+        vs = compileShader(GL_VERTEX_SHADER, textVertexShader, text);
+        fs = compileShader(GL_FRAGMENT_SHADER, textFragmentShader, text);
+    } else {
+        vs = compileShader(GL_VERTEX_SHADER, vertexShaderSource, text);
+        fs = compileShader(GL_FRAGMENT_SHADER, fragmentShaderSourcePawn, text);
+    }
+
     const GLuint program = glCreateProgram();
     glAttachShader(program, vs);
     glAttachShader(program, fs);
@@ -142,7 +174,7 @@ GLuint createShaderProgram() {
     if (!linked) {
         char infoLog[512];
         glGetProgramInfoLog(program, 512, nullptr, infoLog);
-        std::cerr << "❌ Shader linking failed:\n" << infoLog << "\n";
+        std::cerr << "❌ Shader linking " << (text ? "(TextShader)" : "(PawnShader)") << " failed: " << infoLog << "\n";
     }
     glDeleteShader(vs);
     glDeleteShader(fs);

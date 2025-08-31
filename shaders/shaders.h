@@ -8,7 +8,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 GLuint compileShader(GLenum type, const char* source);
-GLuint createShaderProgram();
+GLuint createShaderProgram(bool text);
 
 inline GLuint shaderProgram;
 

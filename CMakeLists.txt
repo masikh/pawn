@@ -37,6 +37,8 @@ add_executable(Pawn main.cpp
         glfw/setupGLFW.h
         textures/loadTextures.cpp
         textures/loadTextures.h
+        textRendering/fontLoader.h
+        externalHeaders/stb_truetype.h
 )
 
 # Link libraries: GLFW, GLEW, OpenGL framework (required on macOS)
