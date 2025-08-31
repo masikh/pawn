@@ -14,6 +14,7 @@
 #include <vector>
 #include <chrono>
 
+std::string CONTROLS = "Controls: [Q]uit | [F]ullscreen | [R]otation | [<,>] Radial divisions | [I]nfo";
 
 class DrawScene {
     public:
@@ -21,14 +22,22 @@ class DrawScene {
         GLuint gTextShader;
 
         GLuint textureMarble{}, textureBase{}, textureFloor{};
+        Font font{};
         float aspectRatio = 16.0f / 9.0f;
+        int width = 800;
+        int height = 450;
         bool pawnRotate = true;
         bool abort = false;
         bool shouldRun = true;
+        bool showInfo = true;
         float currentTime = 0.0f, deltaTime = 0.0f, lastFrameTime = 0.0f;
         int radialDivisions = 40;
+        int fps = 0;
 
         explicit DrawScene() {
+            // Load font
+            font = loadFont(24.0f);
+
             // Load textures
             loadTextureFromMemory(marble_jpg, marble_jpg_len, textureMarble, "marble.h");
             generateTexture(textureBase, true);
@@ -62,13 +71,16 @@ class DrawScene {
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear buffers
             glUseProgram(pawn.shaderProgram);
 
-            // set current time and compute deltaTime
+            // set current-time and compute deltaTime
             currentTime = static_cast<float>(glfwGetTime());
             deltaTime = currentTime - lastFrameTime;
             lastFrameTime = currentTime;
 
             if (abort) {
-                // Fade the scene to black and exit program by setting shouldRun to false.
+                // disable fps counter
+                showInfo = false;
+
+                // Fade the scene to black and exit the program by setting shouldRun to false.
                 float targetFade = 0.0f;  // Target for fade-out
                 float lerpSpeed = 1.0f;   // Controls how fast it fades (higher = faster)
 
@@ -91,13 +103,33 @@ class DrawScene {
             glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(pawn.indices.size()), GL_UNSIGNED_INT, nullptr);
         }
 
+        void info() {
+            if (!showInfo) return;
+
+            // Show fps
+            std::string sfps = "FPS: " + std::to_string(fps);
+            renderText(font, sfps, 15.0f, 30.0f, 1.0f, glm::vec3(1.0f, 1.0f, 0.0f), width, height);
+
+            // Show runtime
+            std::string sradialDivisions = "Radial Divisions: " + std::to_string(radialDivisions);
+            renderText(font, sradialDivisions, 15.0f, 50.0f, 1.0f, glm::vec3(1.0f, 1.0f, 0.0f), width, height);
+
+            // Show Controls
+            std::string srunTime = CONTROLS;
+            renderText(font, srunTime, 15.0f, 70.0f, 1.0f, glm::vec3(1.0f, 1.0f, 0.0f), width, height);
+        }
+
         void keyboard (const keyboardResult &keyboard) {
             if (keyboard.key == GLFW_KEY_Q) {
                 abort = true;
             }
-            if (keyboard.key == GLFW_KEY_1) {
+            if (keyboard.key == GLFW_KEY_R) {
                 pawnRotate = !pawnRotate;
                 std::cout << "\nℹ️ " << (pawnRotate ? " Starting pawn rotation." : " Stopping pawn rotation.") << std::flush;
+            }
+            if (keyboard.key == GLFW_KEY_I) {
+                showInfo = !showInfo;
+                std::cout << "\nℹ️ " << (showInfo ? " Info pane enabled" : " Info pane disabled.") << std::flush;
             }
             if (keyboard.key == GLFW_KEY_COMMA) {
                 if (radialDivisions > 3) radialDivisions--;
@@ -124,11 +156,12 @@ class DrawScene {
             glUniform3f(glGetUniformLocation(gTextShader, "textColor"),
                         color.x, color.y, color.z);
 
-            // Setup orthographic projection (0,0) bottom-left
+            // Setup orthographic projection (0,0) top-left
             glm::mat4 projection = glm::ortho(0.0f, float(winW),
-                                              0.0f, float(winH));
+                                              float(winH), 0.0f);
             glUniformMatrix4fv(glGetUniformLocation(gTextShader, "projection"),
                                1, GL_FALSE, &projection[0][0]);
+
 
             // Bind font texture and VAO
             glActiveTexture(GL_TEXTURE0);
@@ -175,31 +208,31 @@ int main() {
     GLFWmonitor* monitor = nullptr;
     const GLFWvidmode* mode = nullptr;
     GLFWwindow* window = initWindow(&monitor, &mode);
-    Font font = loadFont("../textRendering/Roboto-Regular.ttf", 24.0f);
 
     DrawScene scene{};
 
-    // Attach resize handler to recompute aspect ratio only after resizing stops
+    // Attach resize handler to recompute the aspect ratio only after resizing stops
     ResizeHandler resizeHandler(window, [&](int width, int height) {
         scene.aspectRatio = static_cast<float>(width) / static_cast<float>(height);
+        scene.width = width;
+        scene.height = height;
         std::cout << "\n✅ Window Resized:\n";
         std::cout << "   → Dimensions: " << width << "x" << height << "\n";
         std::cout << "   → Aspect ratio: " << scene.aspectRatio << "\n";
     });
 
+    std::stringstream fps;
     bool frameRateRestored = true;
     std::chrono::high_resolution_clock::time_point lastFrame;
     std::chrono::high_resolution_clock::time_point lastFrameDrop;
 
     double keyPressedTime = glfwGetTime();
     keyboardResult keyboard{};
-    std::cout << "\nControls: [Esc/q] Quit | [f] Fullscreen | [1] Toggles rotation | [<,>] Adjust radial divisions \n\n" << std::flush;
+    std::cout << CONTROLS << std::flush;
 
     while (scene.shouldRun) {
         // Query current framebuffer size and set viewport
-        int fbW = 0, fbH = 0;
-        glfwGetFramebufferSize(window, &fbW, &fbH);
-        glViewport(0, 0, fbW, fbH);
+
 
         // Check for fullscreen or exit program keys
         keyboard = checkKeyBoard(window, keyboard);
@@ -212,12 +245,10 @@ int main() {
         // Draw the scene
         scene.keyboard(keyboard);
         scene.draw();
+        scene.info();
 
         // Throttle the framerate
-        limitFrameRate(lastFrame, lastFrameDrop, frameRateRestored, keyPressedTime);
-        std::stringstream ss;
-        ss << "FPS: 100";
-        scene.renderText(font, ss.str(), 10.0f, fbH - 30.0f, 1.0f, glm::vec3(1.0f, 1.0f, 0.0f), fbW, fbH);
+        scene.fps = limitFrameRate(lastFrame, lastFrameDrop, frameRateRestored, keyPressedTime);
 
         // Swap buffers and poll for events
         glfwSwapBuffers(window);

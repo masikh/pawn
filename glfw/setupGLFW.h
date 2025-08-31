@@ -22,7 +22,7 @@ inline int windowedWidth = 800, windowedHeight = 600;
 const double TARGET_FPS = 60.0;
 const double FRAME_DURATION = 1.0 / TARGET_FPS;
 inline std::chrono::high_resolution_clock::time_point lastFrameTime = std::chrono::high_resolution_clock::now();
-void limitFrameRate(std::chrono::high_resolution_clock::time_point &lastFrame,
+int limitFrameRate(std::chrono::high_resolution_clock::time_point &lastFrame,
                     std::chrono::high_resolution_clock::time_point &lastFrameDrop,
                     bool &frameRateRestored, double keyPressedTime);
 

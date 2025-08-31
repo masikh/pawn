@@ -38,6 +38,7 @@ add_executable(Pawn main.cpp
         textures/loadTextures.cpp
         textures/loadTextures.h
         textRendering/fontLoader.h
+        textRendering/Roboto-Regular-ttf.h
         externalHeaders/stb_truetype.h
 )
 

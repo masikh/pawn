@@ -14,7 +14,7 @@ int getPressedKey(GLFWwindow* window, std::initializer_list<int> keys) {
 }
 
 keyboardResult checkKeyBoard(GLFWwindow* window, keyboardResult &keyboard) {
-    int key = getPressedKey(window, {GLFW_KEY_F, GLFW_KEY_Q, GLFW_KEY_ESCAPE, GLFW_KEY_1, GLFW_KEY_COMMA, GLFW_KEY_PERIOD});
+    int key = getPressedKey(window, {GLFW_KEY_F, GLFW_KEY_Q, GLFW_KEY_ESCAPE, GLFW_KEY_R, GLFW_KEY_I, GLFW_KEY_COMMA, GLFW_KEY_PERIOD});
 
     switch (key) {
         case GLFW_KEY_F: // FullScreen on/off
@@ -34,10 +34,18 @@ keyboardResult checkKeyBoard(GLFWwindow* window, keyboardResult &keyboard) {
             }
             break;
 
-        case GLFW_KEY_1: // Pawn stall rotation
+        case GLFW_KEY_R: // Pawn stall rotation
             if (!keyWasPressed) {
                 keyWasPressed = true;
-                keyboard.key = GLFW_KEY_1;
+                keyboard.key = GLFW_KEY_R;
+                return keyboard;
+            }
+            break;
+
+        case GLFW_KEY_I: // Pawn stall rotation
+            if (!keyWasPressed) {
+                keyWasPressed = true;
+                keyboard.key = GLFW_KEY_I;
                 return keyboard;
             }
             break;
@@ -206,12 +214,14 @@ void updatePawnMovement(glfwObject& object, float aspectRatio, bool pawnRotate) 
 }
 
 
-void limitFrameRate(std::chrono::high_resolution_clock::time_point &lastFrame,
+int limitFrameRate(std::chrono::high_resolution_clock::time_point &lastFrame,
                     std::chrono::high_resolution_clock::time_point &lastFrameDrop,
                     bool &frameRateRestored, double keyPressedTime) {
+
     // Suppress output on keyboard interaction
-    if (glfwGetTime() - keyPressedTime < 2.0)
-        return;
+    if (glfwGetTime() - keyPressedTime < 2.0) {
+        return -1;
+    }
 
     auto now = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> frameTime = now - lastFrame;
@@ -226,17 +236,19 @@ void limitFrameRate(std::chrono::high_resolution_clock::time_point &lastFrame,
     lastFrame = now;
 
     // Frame duration exceeds an acceptable threshold — it's a drop
+    int actualFPS = static_cast<int>(1.0 / frameTime.count());
     if (frameTime.count() > FRAME_DURATION + 0.001) {
-        int actualFPS = static_cast<int>(1.0 / frameTime.count());
         lastFrameDrop = now;
-        if (actualFPS > 0) std::cout << "\033[2K\r❌ Frame rate " << actualFPS << "/60 FPS." << std::flush;
+        if (actualFPS > 0) std::cout << "\033[2K\r❌ Frame rate " << actualFPS << "/" << TARGET_FPS << " FPS." << std::flush;
         frameRateRestored = false;
     } else {
         // If we've had good FPS for more than 1 second, announce recovery
         if (!frameRateRestored && (now - lastFrameDrop > std::chrono::seconds(1))) {
-            std::cout << "\033[2K\r✅ Frame rate at 60 FPS." << std::flush;
+            std::cout << "\033[2K\r✅ Frame rate at " << TARGET_FPS << " FPS." << std::flush;
             frameRateRestored = true;
         }
         // Otherwise do nothing; we're still within the unstable 1s window
     }
+
+    return actualFPS;
 }
