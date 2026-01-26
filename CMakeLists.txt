@@ -52,6 +52,44 @@ target_link_libraries(Pawn
         "-framework CoreVideo"
 )
 
+ if(APPLE)
+         set_target_properties(Pawn PROPERTIES
+                 MACOSX_BUNDLE TRUE
+                 MACOSX_BUNDLE_BUNDLE_NAME "Pawn"
+                 MACOSX_BUNDLE_GUI_IDENTIFIER "com.pawn.app"
+                 MACOSX_BUNDLE_BUNDLE_VERSION "1"
+                 MACOSX_BUNDLE_SHORT_VERSION_STRING "1.0"
+                 MACOSX_BUNDLE_LONG_VERSION_STRING "1.0"
+         )
+
+         find_program(PAWN_PYTHON_EXECUTABLE NAMES python3 python)
+         if(PAWN_PYTHON_EXECUTABLE)
+                 set(APP_ICON_NAME "Pawn.icns")
+                 set(APP_ICON_PATH "${CMAKE_CURRENT_BINARY_DIR}/${APP_ICON_NAME}")
+
+                 add_custom_command(
+                         OUTPUT "${APP_ICON_PATH}"
+                         COMMAND "${PAWN_PYTHON_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/generate_pawn_icns.py" "${APP_ICON_PATH}"
+                         DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/tools/generate_pawn_icns.py"
+                         VERBATIM
+                 )
+
+                 add_custom_target(PawnIcon DEPENDS "${APP_ICON_PATH}")
+                 add_dependencies(Pawn PawnIcon)
+
+                 target_sources(Pawn PRIVATE "${APP_ICON_PATH}")
+                 set_source_files_properties("${APP_ICON_PATH}" PROPERTIES
+                         MACOSX_PACKAGE_LOCATION "Resources"
+                         GENERATED TRUE
+                 )
+                 set_target_properties(Pawn PROPERTIES
+                         MACOSX_BUNDLE_ICON_FILE "${APP_ICON_NAME}"
+                 )
+         else()
+                 message(WARNING "Python interpreter not found; macOS app icon will not be generated")
+         endif()
+ endif()
+
 # Post-build: Strip symbols from the binary and compress
 add_custom_command(TARGET Pawn POST_BUILD
         # COMMAND strip -u -r $<TARGET_FILE:Pawn>
