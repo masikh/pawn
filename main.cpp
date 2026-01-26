@@ -152,11 +152,20 @@ namespace {
                     vec2 curlDir = vec2(-pushDir.y, pushDir.x);
                     displacement += curlDir * curlStrength;
 
-                    vec2 wind = vec2(-0.02, 0.01) * uTime;
-                    vec2 pDisplaced = p + displacement;
-                    float n = fbm(pDisplaced * 1.8 + wind);
-                    float m = fbm(pDisplaced * 3.2 - wind * 1.3);
-                    float c = n * 0.7 + m * 0.3;
+                    float t = uTime * 2.5;
+                    vec2 wind1 = vec2(-0.035, 0.012) * t;
+                    vec2 wind2 = vec2(0.02, -0.025) * t;
+                    vec2 swirl = vec2(sin(t * 0.3 + p.y * 2.0), cos(t * 0.25 + p.x * 2.0)) * 0.02;
+                    vec2 turbulence = vec2(
+                        sin(t * 0.5 + p.x * 3.0) * cos(t * 0.4 + p.y * 2.5),
+                        cos(t * 0.45 + p.y * 3.0) * sin(t * 0.35 + p.x * 2.0)
+                    ) * 0.015;
+
+                    vec2 pDisplaced = p + displacement + swirl + turbulence;
+                    float n = fbm(pDisplaced * 1.8 + wind1);
+                    float m = fbm(pDisplaced * 3.2 + wind2);
+                    float detail = fbm(pDisplaced * 5.0 - wind1 * 0.5 + vec2(t * 0.01, 0.0));
+                    float c = n * 0.55 + m * 0.3 + detail * 0.15;
 
                     float wakeBoost = (1.0 - pushAway) * pawnSpeed * 0.6;
                     float puff = smoothstep(0.45 - wakeBoost, 0.78, c);
