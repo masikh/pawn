@@ -50,6 +50,167 @@ namespace {
         return program;
     }
 
+    struct CloudForeground {
+        GLuint program = 0;
+        GLuint vao = 0;
+        GLuint vbo = 0;
+        GLuint depthTex = 0;
+        int depthW = 0;
+        int depthH = 0;
+        bool initialized = false;
+
+        void init() {
+            if (initialized) return;
+
+            const char* vs = R"(
+                #version 330 core
+                layout(location = 0) in vec2 aPos;
+                out vec2 vUV;
+                void main() {
+                    vUV = aPos * 0.5 + 0.5;
+                    gl_Position = vec4(aPos, 0.0, 1.0);
+                }
+            )";
+
+            const char* fs = R"(
+                #version 330 core
+                in vec2 vUV;
+                out vec4 FragColor;
+
+                uniform sampler2D uDepth;
+                uniform float uTime;
+                uniform vec2 uResolution;
+                uniform float uNear;
+                uniform float uFar;
+
+                float hash12(vec2 p) {
+                    vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+                    p3 += dot(p3, p3.yzx + 33.33);
+                    return fract((p3.x + p3.y) * p3.z);
+                }
+
+                float noise(vec2 p) {
+                    vec2 i = floor(p);
+                    vec2 f = fract(p);
+                    f = f * f * (3.0 - 2.0 * f);
+                    float a = hash12(i + vec2(0.0, 0.0));
+                    float b = hash12(i + vec2(1.0, 0.0));
+                    float c = hash12(i + vec2(0.0, 1.0));
+                    float d = hash12(i + vec2(1.0, 1.0));
+                    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+                }
+
+                float fbm(vec2 p) {
+                    float v = 0.0;
+                    float a = 0.55;
+                    for (int i = 0; i < 5; ++i) {
+                        v += a * noise(p);
+                        p *= 2.02;
+                        a *= 0.5;
+                    }
+                    return v;
+                }
+
+                float linearizeDepth(float d) {
+                    float z = d * 2.0 - 1.0;
+                    return (2.0 * uNear * uFar) / (uFar + uNear - z * (uFar - uNear));
+                }
+
+                void main() {
+                    vec2 uv = vUV;
+                    vec2 p = (uv - 0.5) * vec2(uResolution.x / uResolution.y, 1.0);
+
+                    float sceneDepth = texture(uDepth, uv).r;
+                    float linDepth = linearizeDepth(sceneDepth);
+
+                    float depthMask = smoothstep(2.0, 6.0, linDepth);
+
+                    vec2 wind = vec2(-0.02, 0.01) * uTime;
+                    float n = fbm(p * 1.8 + wind);
+                    float m = fbm(p * 3.2 - wind * 1.3);
+                    float c = n * 0.7 + m * 0.3;
+
+                    float puff = smoothstep(0.55, 0.82, c);
+                    float alpha = puff * depthMask * 0.75;
+
+                    vec3 col = vec3(0.58);
+                    FragColor = vec4(col * alpha, alpha);
+                }
+            )";
+
+            program = linkRawProgram(vs, fs);
+
+            const float quad[] = {
+                -1.0f, -1.0f,
+                 1.0f, -1.0f,
+                 1.0f,  1.0f,
+                -1.0f, -1.0f,
+                 1.0f,  1.0f,
+                -1.0f,  1.0f,
+            };
+
+            glGenVertexArrays(1, &vao);
+            glGenBuffers(1, &vbo);
+            glBindVertexArray(vao);
+            glBindBuffer(GL_ARRAY_BUFFER, vbo);
+            glBufferData(GL_ARRAY_BUFFER, sizeof(quad), quad, GL_STATIC_DRAW);
+            glEnableVertexAttribArray(0);
+            glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+            glBindVertexArray(0);
+
+            initialized = true;
+        }
+
+        void ensureDepthTex(int w, int h) {
+            if (w <= 0 || h <= 0) return;
+            if (depthTex != 0 && w == depthW && h == depthH) return;
+
+            if (depthTex == 0) glGenTextures(1, &depthTex);
+            glBindTexture(GL_TEXTURE_2D, depthTex);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, w, h, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, nullptr);
+            glBindTexture(GL_TEXTURE_2D, 0);
+
+            depthW = w;
+            depthH = h;
+        }
+
+        void draw(int w, int h, float t) {
+            if (!initialized || program == 0) return;
+
+            ensureDepthTex(w, h);
+            glBindTexture(GL_TEXTURE_2D, depthTex);
+            glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, w, h);
+            glBindTexture(GL_TEXTURE_2D, 0);
+
+            glUseProgram(program);
+            glDisable(GL_DEPTH_TEST);
+            glDepthMask(GL_FALSE);
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, depthTex);
+            glUniform1i(glGetUniformLocation(program, "uDepth"), 0);
+
+            glUniform1f(glGetUniformLocation(program, "uTime"), t);
+            glUniform2f(glGetUniformLocation(program, "uResolution"), float(w), float(h));
+            glUniform1f(glGetUniformLocation(program, "uNear"), 0.1f);
+            glUniform1f(glGetUniformLocation(program, "uFar"), 100.0f);
+
+            glBindVertexArray(vao);
+            glDrawArrays(GL_TRIANGLES, 0, 6);
+            glBindVertexArray(0);
+            glBindTexture(GL_TEXTURE_2D, 0);
+
+            glDepthMask(GL_TRUE);
+            glEnable(GL_DEPTH_TEST);
+        }
+    };
+
     struct CloudBackground {
         GLuint program = 0;
         GLuint vao = 0;
@@ -171,6 +332,7 @@ class DrawScene {
         GLuint gTextShader;
 
         CloudBackground clouds{};
+        CloudForeground cloudsFront{};
 
         GLuint textureMarble{}, textureBase{}, textureFloor{};
         Font font{};
@@ -211,6 +373,7 @@ class DrawScene {
             gTextShader = createShaderProgram(true);
 
             clouds.init();
+            cloudsFront.init();
             glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         }
 
@@ -257,6 +420,8 @@ class DrawScene {
 
             glBindVertexArray(pawn.VAO);
             glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(pawn.indices.size()), GL_UNSIGNED_INT, nullptr);
+
+            cloudsFront.draw(width, height, static_cast<float>(glfwGetTime()));
         }
 
         void info() {
