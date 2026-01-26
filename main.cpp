@@ -13,6 +13,155 @@
 #include <GLFW/glfw3.h>
 #include <vector>
 #include <chrono>
+#include <cassert>
+#include <sstream>
+
+namespace {
+    GLuint compileRawShader(GLenum type, const char* source) {
+        GLuint shader = glCreateShader(type);
+        glShaderSource(shader, 1, &source, nullptr);
+        glCompileShader(shader);
+        GLint ok = 0;
+        glGetShaderiv(shader, GL_COMPILE_STATUS, &ok);
+        if (!ok) {
+            char info[1024];
+            glGetShaderInfoLog(shader, 1024, nullptr, info);
+            std::cerr << "❌ Cloud shader compile failed:\n" << info << "\n";
+        }
+        return shader;
+    }
+
+    GLuint linkRawProgram(const char* vsSource, const char* fsSource) {
+        const GLuint vs = compileRawShader(GL_VERTEX_SHADER, vsSource);
+        const GLuint fs = compileRawShader(GL_FRAGMENT_SHADER, fsSource);
+        const GLuint program = glCreateProgram();
+        glAttachShader(program, vs);
+        glAttachShader(program, fs);
+        glLinkProgram(program);
+        GLint linked = 0;
+        glGetProgramiv(program, GL_LINK_STATUS, &linked);
+        if (!linked) {
+            char info[1024];
+            glGetProgramInfoLog(program, 1024, nullptr, info);
+            std::cerr << "❌ Cloud shader link failed:\n" << info << "\n";
+        }
+        glDeleteShader(vs);
+        glDeleteShader(fs);
+        return program;
+    }
+
+    struct CloudBackground {
+        GLuint program = 0;
+        GLuint vao = 0;
+        GLuint vbo = 0;
+        bool initialized = false;
+
+        void init() {
+            if (initialized) return;
+
+            const char* vs = R"(
+                #version 330 core
+                layout(location = 0) in vec2 aPos;
+                out vec2 vUV;
+                void main() {
+                    vUV = aPos * 0.5 + 0.5;
+                    gl_Position = vec4(aPos, 0.0, 1.0);
+                }
+            )";
+
+            const char* fs = R"(
+                #version 330 core
+                in vec2 vUV;
+                out vec4 FragColor;
+
+                uniform float uTime;
+                uniform vec2 uResolution;
+
+                float hash12(vec2 p) {
+                    vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+                    p3 += dot(p3, p3.yzx + 33.33);
+                    return fract((p3.x + p3.y) * p3.z);
+                }
+
+                float noise(vec2 p) {
+                    vec2 i = floor(p);
+                    vec2 f = fract(p);
+                    f = f * f * (3.0 - 2.0 * f);
+                    float a = hash12(i + vec2(0.0, 0.0));
+                    float b = hash12(i + vec2(1.0, 0.0));
+                    float c = hash12(i + vec2(0.0, 1.0));
+                    float d = hash12(i + vec2(1.0, 1.0));
+                    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+                }
+
+                float fbm(vec2 p) {
+                    float v = 0.0;
+                    float a = 0.55;
+                    for (int i = 0; i < 5; ++i) {
+                        v += a * noise(p);
+                        p *= 2.02;
+                        a *= 0.5;
+                    }
+                    return v;
+                }
+
+                void main() {
+                    vec2 uv = vUV;
+                    vec2 p = (uv - 0.5) * vec2(uResolution.x / uResolution.y, 1.0);
+
+                    vec2 wind = vec2(0.015, 0.0) * uTime;
+                    float n = fbm(p * 1.2 + wind);
+                    float m = fbm(p * 2.6 - wind * 1.7);
+                    float c = n * 0.75 + m * 0.25;
+
+                    float puff = smoothstep(0.58, 0.86, c);
+                    float alpha = puff * 0.92;
+
+                    vec3 col = vec3(0.62);
+                    FragColor = vec4(col * alpha, alpha);
+                }
+            )";
+
+            program = linkRawProgram(vs, fs);
+
+            const float quad[] = {
+                -1.0f, -1.0f,
+                 1.0f, -1.0f,
+                 1.0f,  1.0f,
+                -1.0f, -1.0f,
+                 1.0f,  1.0f,
+                -1.0f,  1.0f,
+            };
+
+            glGenVertexArrays(1, &vao);
+            glGenBuffers(1, &vbo);
+            glBindVertexArray(vao);
+            glBindBuffer(GL_ARRAY_BUFFER, vbo);
+            glBufferData(GL_ARRAY_BUFFER, sizeof(quad), quad, GL_STATIC_DRAW);
+            glEnableVertexAttribArray(0);
+            glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+            glBindVertexArray(0);
+
+            initialized = true;
+        }
+
+        void draw(int w, int h, float t) {
+            if (!initialized || program == 0) return;
+            glUseProgram(program);
+            glDisable(GL_DEPTH_TEST);
+            glDepthMask(GL_FALSE);
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            glUniform1f(glGetUniformLocation(program, "uTime"), t);
+            glUniform2f(glGetUniformLocation(program, "uResolution"), float(w), float(h));
+            glBindVertexArray(vao);
+            glDrawArrays(GL_TRIANGLES, 0, 6);
+            glBindVertexArray(0);
+            glDepthMask(GL_TRUE);
+            glEnable(GL_DEPTH_TEST);
+        }
+    };
+}
 
 std::string CONTROLS = "Controls: [Q]uit | [F]ullscreen | [R]otation | [<,>] Radial divisions | [I]nfo";
 
@@ -20,6 +169,8 @@ class DrawScene {
     public:
         glfwObject pawn{};
         GLuint gTextShader;
+
+        CloudBackground clouds{};
 
         GLuint textureMarble{}, textureBase{}, textureFloor{};
         Font font{};
@@ -58,6 +209,9 @@ class DrawScene {
 
             // Setup gTextShader
             gTextShader = createShaderProgram(true);
+
+            clouds.init();
+            glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         }
 
         void setupPawn() {
@@ -69,6 +223,8 @@ class DrawScene {
         void draw() {
             // Do this only once in the program!!!
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear buffers
+            clouds.draw(width, height, static_cast<float>(glfwGetTime()));
+
             glUseProgram(pawn.shaderProgram);
 
             // set current-time and compute deltaTime
@@ -232,6 +388,16 @@ int main() {
 
     while (scene.shouldRun) {
         // Query current framebuffer size and set viewport
+
+        int fbW = 0;
+        int fbH = 0;
+        glfwGetFramebufferSize(window, &fbW, &fbH);
+        if (fbW > 0 && fbH > 0) {
+            glViewport(0, 0, fbW, fbH);
+            scene.width = fbW;
+            scene.height = fbH;
+            scene.aspectRatio = static_cast<float>(fbW) / static_cast<float>(fbH);
+        }
 
 
         // Check for fullscreen or exit program keys

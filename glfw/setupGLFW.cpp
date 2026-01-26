@@ -5,6 +5,9 @@
 #include "setupGLFW.h"
 #include "../shaders/shaders.h"
 
+#include <algorithm>
+#include <cmath>
+
 int getPressedKey(GLFWwindow* window, std::initializer_list<int> keys) {
     for (int key : keys) {
         if (glfwGetKey(window, key) == GLFW_PRESS)
