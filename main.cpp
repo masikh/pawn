@@ -123,15 +123,16 @@ namespace {
                     float sceneDepth = texture(uDepth, uv).r;
                     float linDepth = linearizeDepth(sceneDepth);
 
-                    float depthMask = smoothstep(2.0, 6.0, linDepth);
+                    float depthMask = smoothstep(0.5, 15.0, linDepth);
+                    depthMask = mix(0.85, 1.0, depthMask);
 
                     vec2 wind = vec2(-0.02, 0.01) * uTime;
                     float n = fbm(p * 1.8 + wind);
                     float m = fbm(p * 3.2 - wind * 1.3);
                     float c = n * 0.7 + m * 0.3;
 
-                    float puff = smoothstep(0.55, 0.82, c);
-                    float alpha = puff * depthMask * 0.75;
+                    float puff = smoothstep(0.45, 0.78, c);
+                    float alpha = puff * depthMask * 0.72;
 
                     vec3 col = vec3(0.58);
                     FragColor = vec4(col * alpha, alpha);
