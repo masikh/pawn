@@ -82,6 +82,9 @@ namespace {
                 uniform vec2 uResolution;
                 uniform float uNear;
                 uniform float uFar;
+                uniform vec2 uPawnScreenPos;
+                uniform vec2 uPawnVelocity;
+                uniform float uPawnRadius;
 
                 float hash12(vec2 p) {
                     vec3 p3 = fract(vec3(p.xyx) * 0.1031);
@@ -126,13 +129,32 @@ namespace {
                     float depthMask = smoothstep(0.5, 15.0, linDepth);
                     depthMask = mix(0.85, 1.0, depthMask);
 
+                    vec2 toPawn = uv - uPawnScreenPos;
+                    toPawn.x *= uResolution.x / uResolution.y;
+                    float distToPawn = length(toPawn);
+
+                    float pawnSpeed = length(uPawnVelocity);
+                    vec2 velDir = pawnSpeed > 0.001 ? normalize(uPawnVelocity) : vec2(0.0);
+
+                    float dynamicRadius = uPawnRadius + pawnSpeed * 0.8;
+                    float pushAway = smoothstep(0.0, dynamicRadius, distToPawn);
+
+                    vec2 pushDir = distToPawn > 0.001 ? normalize(toPawn) : vec2(0.0);
+                    float velAlignment = dot(pushDir, velDir);
+                    float momentumBoost = max(0.0, velAlignment) * pawnSpeed * 2.5;
+
+                    vec2 displacement = pushDir * (1.0 - pushAway) * (0.15 + momentumBoost);
+                    displacement += velDir * (1.0 - pushAway) * pawnSpeed * 1.2;
+
                     vec2 wind = vec2(-0.02, 0.01) * uTime;
-                    float n = fbm(p * 1.8 + wind);
-                    float m = fbm(p * 3.2 - wind * 1.3);
+                    vec2 pDisplaced = p + displacement;
+                    float n = fbm(pDisplaced * 1.8 + wind);
+                    float m = fbm(pDisplaced * 3.2 - wind * 1.3);
                     float c = n * 0.7 + m * 0.3;
 
-                    float puff = smoothstep(0.45, 0.78, c);
-                    float alpha = puff * depthMask * 0.72;
+                    float wakeBoost = (1.0 - pushAway) * pawnSpeed * 0.6;
+                    float puff = smoothstep(0.45 - wakeBoost, 0.78, c);
+                    float alpha = puff * depthMask * pushAway * 0.72;
 
                     vec3 col = vec3(0.58);
                     FragColor = vec4(col * alpha, alpha);
@@ -179,8 +201,20 @@ namespace {
             depthH = h;
         }
 
-        void draw(int w, int h, float t) {
+        float lastPawnX = 0.5f;
+        float lastPawnY = 0.5f;
+        float smoothVelX = 0.0f;
+        float smoothVelY = 0.0f;
+
+        void draw(int w, int h, float t, float pawnScreenX, float pawnScreenY, float dt) {
             if (!initialized || program == 0) return;
+
+            float velX = (pawnScreenX - lastPawnX) / std::max(dt, 0.001f);
+            float velY = (pawnScreenY - lastPawnY) / std::max(dt, 0.001f);
+            smoothVelX = smoothVelX * 0.85f + velX * 0.15f;
+            smoothVelY = smoothVelY * 0.85f + velY * 0.15f;
+            lastPawnX = pawnScreenX;
+            lastPawnY = pawnScreenY;
 
             ensureDepthTex(w, h);
             glBindTexture(GL_TEXTURE_2D, depthTex);
@@ -201,6 +235,9 @@ namespace {
             glUniform2f(glGetUniformLocation(program, "uResolution"), float(w), float(h));
             glUniform1f(glGetUniformLocation(program, "uNear"), 0.1f);
             glUniform1f(glGetUniformLocation(program, "uFar"), 100.0f);
+            glUniform2f(glGetUniformLocation(program, "uPawnScreenPos"), pawnScreenX, pawnScreenY);
+            glUniform2f(glGetUniformLocation(program, "uPawnVelocity"), smoothVelX, smoothVelY);
+            glUniform1f(glGetUniformLocation(program, "uPawnRadius"), 0.18f);
 
             glBindVertexArray(vao);
             glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -422,7 +459,9 @@ class DrawScene {
             glBindVertexArray(pawn.VAO);
             glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(pawn.indices.size()), GL_UNSIGNED_INT, nullptr);
 
-            cloudsFront.draw(width, height, static_cast<float>(glfwGetTime()));
+            float pawnScreenX = 0.5f + (pawn.positionX / (aspectRatio * 5.0f));
+            float pawnScreenY = 0.5f;
+            cloudsFront.draw(width, height, static_cast<float>(glfwGetTime()), pawnScreenX, pawnScreenY, deltaTime);
         }
 
         void info() {
