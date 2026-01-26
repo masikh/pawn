@@ -146,6 +146,12 @@ namespace {
                     vec2 displacement = pushDir * (1.0 - pushAway) * (0.15 + momentumBoost);
                     displacement += velDir * (1.0 - pushAway) * pawnSpeed * 1.2;
 
+                    vec2 perpVel = vec2(-velDir.y, velDir.x);
+                    float sideSign = dot(toPawn, perpVel);
+                    float curlStrength = sideSign * pawnSpeed * (1.0 - pushAway) * 1.8;
+                    vec2 curlDir = vec2(-pushDir.y, pushDir.x);
+                    displacement += curlDir * curlStrength;
+
                     vec2 wind = vec2(-0.02, 0.01) * uTime;
                     vec2 pDisplaced = p + displacement;
                     float n = fbm(pDisplaced * 1.8 + wind);
