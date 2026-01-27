@@ -20,13 +20,19 @@ macOS (default)
 Linux (explicit)
 
     sh
+    mkdir build
     cmake -B build -DPAWN_LINUX=ON
     cmake --build build
 
 # Run
 
-In the build directory run
-    
-    ./Pawn
+macOS
 
-**Note:** F toggles full screen
+    copy build/Pawn.app to /Applications
+    open /Applications/Pawn.app
+
+Linux
+
+run Pawn in the build directory
+
+    ./build/Pawn
