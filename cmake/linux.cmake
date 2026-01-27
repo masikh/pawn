@@ -55,7 +55,7 @@ if(glm_FOUND)
 endif()
 
 # Link libraries
-target_link_libraries(Pawn
+target_link_libraries(Pawn PRIVATE
         ${GLFW_LIBRARIES}
         ${GLEW_LIBRARIES}
         OpenGL::GL

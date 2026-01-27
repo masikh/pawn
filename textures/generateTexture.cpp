@@ -1,5 +1,8 @@
 #include "externalHeaders/stb_image.h"
 #include <GL/glew.h>
+#include <algorithm>
+#include <cstring>
+#include <ctime>
 #include <iostream>
 
 #define NANOSVG_IMPLEMENTATION
