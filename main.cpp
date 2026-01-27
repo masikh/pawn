@@ -171,7 +171,11 @@ namespace {
                     float puff = smoothstep(0.45 - wakeBoost, 0.78, c);
                     float alpha = puff * depthMask * pushAway * 0.72;
 
-                    vec3 col = vec3(0.58);
+                    vec3 baseCol = vec3(0.58);
+                    vec3 greenTint = vec3(0.55, 0.62, 0.54);
+                    vec3 purpleTint = vec3(0.60, 0.55, 0.62);
+                    float tintMix = noise(p * 3.0 + wind1 * 0.5) * 2.56;
+                    vec3 col = mix(baseCol, mix(greenTint, purpleTint, noise(p * 2.0 - wind2)), tintMix);
                     FragColor = vec4(col * alpha, alpha);
                 }
             )";
