@@ -19,6 +19,7 @@
 
 // Window settings
 inline bool isFullscreen = false;
+inline bool isDesktopPinned = false;
 inline int windowedX = 100, windowedY = 100;  // Starting position
 inline int windowedWidth = 800, windowedHeight = 600;
 
@@ -33,6 +34,7 @@ int limitFrameRate(std::chrono::high_resolution_clock::time_point &lastFrame,
 // Set window
 GLFWwindow* initWindow(GLFWmonitor** outMonitor, const GLFWvidmode** outMode);
 void toggleFullscreen(GLFWwindow* window, GLFWmonitor* monitor, const GLFWvidmode* mode, bool& isFullscreen);
+void toggleDesktopPinned(GLFWwindow* window, bool& isDesktopPinned);
 
 // Keyboard handler
 inline static bool keyWasPressed = false;

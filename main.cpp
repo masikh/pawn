@@ -381,7 +381,7 @@ namespace {
     };
 }
 
-std::string CONTROLS = "Controls: [Q]uit | [F]ullscreen | [R]otation | [<,>] Radial divisions | [I]nfo";
+std::string CONTROLS = "Controls: [Q]uit | [F]ullscreen | [B]ehind icons | [R]otation | [<,>] Radial divisions | [I]nfo";
 
 class DrawScene {
     public:
@@ -629,6 +629,12 @@ int main() {
         if (keyboard.key == GLFW_KEY_F) {
             toggleFullscreen(window, monitor, mode, isFullscreen);
             std::cout << "\nℹ️ " << (isFullscreen ? " Switching to full screen mode.\n" : " Exiting full screen mode.\n") << std::flush;
+            keyPressedTime = glfwGetTime();
+        }
+
+        if (keyboard.key == GLFW_KEY_B) {
+            toggleDesktopPinned(window, isDesktopPinned);
+            std::cout << "\nℹ️ " << (isDesktopPinned ? " Desktop pinned mode enabled.\n" : " Desktop pinned mode disabled.\n") << std::flush;
             keyPressedTime = glfwGetTime();
         }
 

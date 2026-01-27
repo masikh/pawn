@@ -17,13 +17,21 @@ int getPressedKey(GLFWwindow* window, std::initializer_list<int> keys) {
 }
 
 keyboardResult checkKeyBoard(GLFWwindow* window, keyboardResult &keyboard) {
-    int key = getPressedKey(window, {GLFW_KEY_F, GLFW_KEY_Q, GLFW_KEY_ESCAPE, GLFW_KEY_R, GLFW_KEY_I, GLFW_KEY_COMMA, GLFW_KEY_PERIOD});
+    int key = getPressedKey(window, {GLFW_KEY_F, GLFW_KEY_B, GLFW_KEY_Q, GLFW_KEY_ESCAPE, GLFW_KEY_R, GLFW_KEY_I, GLFW_KEY_COMMA, GLFW_KEY_PERIOD});
 
     switch (key) {
         case GLFW_KEY_F: // FullScreen on/off
             if (!keyWasPressed) {
                 keyWasPressed = true;
                 keyboard.key = GLFW_KEY_F;
+                return keyboard;
+            }
+            break;
+
+        case GLFW_KEY_B: // Toggle desktop pinned mode
+            if (!keyWasPressed) {
+                keyWasPressed = true;
+                keyboard.key = GLFW_KEY_B;
                 return keyboard;
             }
             break;
@@ -133,6 +141,13 @@ void toggleFullscreen(GLFWwindow* window, GLFWmonitor* monitor, const GLFWvidmod
 
     isFullscreen = !isFullscreen;
 }
+
+#if !defined(__APPLE__)
+void toggleDesktopPinned(GLFWwindow* window, bool& isDesktopPinned) {
+    (void)window;
+    isDesktopPinned = !isDesktopPinned;
+}
+#endif
 
 void setLighting(GLuint shaderProgram) {
     glUseProgram(shaderProgram);

@@ -3,6 +3,8 @@ project(Pawn)
 
 set(CMAKE_CXX_STANDARD 20)
 
+find_package(ZLIB REQUIRED)
+
 # Enable LTO for dead code elimination and internal compression:
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 
@@ -35,6 +37,7 @@ add_executable(Pawn main.cpp
         shaders/shaders.h
         glfw/setupGLFW.cpp
         glfw/setupGLFW.h
+        glfw/desktopPinned.mm
         textures/loadTextures.cpp
         textures/loadTextures.h
         textRendering/fontLoader.h
@@ -62,32 +65,39 @@ target_link_libraries(Pawn
                  MACOSX_BUNDLE_LONG_VERSION_STRING "1.0"
          )
 
-         find_program(PAWN_PYTHON_EXECUTABLE NAMES python3 python)
-         if(PAWN_PYTHON_EXECUTABLE)
-                 set(APP_ICON_NAME "Pawn.icns")
-                 set(APP_ICON_PATH "${CMAKE_CURRENT_BINARY_DIR}/${APP_ICON_NAME}")
+         add_executable(PawnIconGen
+                 tools/generate_pawn_icns.cpp
+                 bezierPawn/bezierCurvesPawn.cpp
+         )
+         target_link_libraries(PawnIconGen PRIVATE ZLIB::ZLIB)
+         target_include_directories(PawnIconGen PRIVATE
+                 /opt/homebrew/include
+                 ${GLFW_INCLUDE_DIRS}
+                 ${GLEW_INCLUDE_DIRS}
+                 ${CMAKE_CURRENT_SOURCE_DIR}
+         )
 
-                 add_custom_command(
-                         OUTPUT "${APP_ICON_PATH}"
-                         COMMAND "${PAWN_PYTHON_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/generate_pawn_icns.py" "${APP_ICON_PATH}"
-                         DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/tools/generate_pawn_icns.py"
-                         VERBATIM
-                 )
+         set(APP_ICON_NAME "Pawn.icns")
+         set(APP_ICON_PATH "${CMAKE_CURRENT_BINARY_DIR}/${APP_ICON_NAME}")
 
-                 add_custom_target(PawnIcon DEPENDS "${APP_ICON_PATH}")
-                 add_dependencies(Pawn PawnIcon)
+         add_custom_command(
+                 OUTPUT "${APP_ICON_PATH}"
+                 COMMAND PawnIconGen "${APP_ICON_PATH}"
+                 DEPENDS PawnIconGen
+                 VERBATIM
+         )
 
-                 target_sources(Pawn PRIVATE "${APP_ICON_PATH}")
-                 set_source_files_properties("${APP_ICON_PATH}" PROPERTIES
-                         MACOSX_PACKAGE_LOCATION "Resources"
-                         GENERATED TRUE
-                 )
-                 set_target_properties(Pawn PROPERTIES
-                         MACOSX_BUNDLE_ICON_FILE "${APP_ICON_NAME}"
-                 )
-         else()
-                 message(WARNING "Python interpreter not found; macOS app icon will not be generated")
-         endif()
+         add_custom_target(PawnIcon DEPENDS "${APP_ICON_PATH}")
+         add_dependencies(Pawn PawnIcon)
+
+         target_sources(Pawn PRIVATE "${APP_ICON_PATH}")
+         set_source_files_properties("${APP_ICON_PATH}" PROPERTIES
+                 MACOSX_PACKAGE_LOCATION "Resources"
+                 GENERATED TRUE
+         )
+         set_target_properties(Pawn PROPERTIES
+                 MACOSX_BUNDLE_ICON_FILE "${APP_ICON_NAME}"
+         )
  endif()
 
 # Post-build: Strip symbols from the binary and compress
