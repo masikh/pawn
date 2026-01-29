@@ -69,9 +69,11 @@ void toggleDesktopPinned(GLFWwindow* window, bool& isDesktopPinned) {
         // Behave like a desktop background across Spaces
         [nsWindow setCollectionBehavior:(NSWindowCollectionBehaviorCanJoinAllSpaces |
                                          NSWindowCollectionBehaviorStationary |
-                                         NSWindowCollectionBehaviorIgnoresCycle)];
+                                         NSWindowCollectionBehaviorIgnoresCycle |
+                                         NSWindowCollectionBehaviorFullScreenNone)];
 
-        [nsWindow setFrame:[screen frame] display:YES];
+        // Avoid triggering any display mode switches by not forcing an immediate display
+        [nsWindow setFrame:[screen frame] display:NO];
         [nsWindow orderFront:nil];
 
         isDesktopPinned = true;
@@ -86,7 +88,8 @@ void toggleDesktopPinned(GLFWwindow* window, bool& isDesktopPinned) {
         [nsWindow setOpaque:g_snapshot.opaque];
         [nsWindow setHasShadow:g_snapshot.hasShadow];
         [nsWindow setCollectionBehavior:g_snapshot.collectionBehavior];
-        [nsWindow setFrame:g_snapshot.frame display:YES];
+        // Restore without forcing a display mode transition
+        [nsWindow setFrame:g_snapshot.frame display:NO];
         [nsWindow orderFront:nil];
     }
 

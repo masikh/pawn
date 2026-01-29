@@ -633,6 +633,9 @@ int main() {
         }
 
         if (keyboard.key == GLFW_KEY_B) {
+            if (isFullscreen) {
+                toggleFullscreen(window, monitor, mode, isFullscreen);
+            }
             toggleDesktopPinned(window, isDesktopPinned);
             std::cout << "\nℹ️ " << (isDesktopPinned ? " Desktop pinned mode enabled.\n" : " Desktop pinned mode disabled.\n") << std::flush;
             keyPressedTime = glfwGetTime();
