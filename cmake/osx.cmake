@@ -60,6 +60,21 @@ target_link_libraries(Pawn
                  MACOSX_BUNDLE_LONG_VERSION_STRING "1.0"
          )
 
+         set(APP_ICON_NAME "Pawn.icns")
+         set(MACOSX_BUNDLE_EXECUTABLE_NAME "Pawn")
+         set(MACOSX_BUNDLE_BUNDLE_NAME "Pawn")
+         set(MACOSX_BUNDLE_GUI_IDENTIFIER "com.pawn.app")
+         set(MACOSX_BUNDLE_BUNDLE_VERSION "1")
+         set(MACOSX_BUNDLE_SHORT_VERSION_STRING "1.0")
+         set(MACOSX_BUNDLE_ICON_FILE "${APP_ICON_NAME}")
+
+         set(APP_BUNDLE_PLIST_IN "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Info.plist.in")
+         set(APP_BUNDLE_PLIST "${CMAKE_CURRENT_BINARY_DIR}/Info.plist")
+         configure_file("${APP_BUNDLE_PLIST_IN}" "${APP_BUNDLE_PLIST}" @ONLY)
+         set_target_properties(Pawn PROPERTIES
+                 MACOSX_BUNDLE_INFO_PLIST "${APP_BUNDLE_PLIST}"
+         )
+
          add_executable(PawnIconGen
                  tools/generate_pawn_icns.cpp
                  bezierPawn/bezierCurvesPawn.cpp
@@ -72,7 +87,6 @@ target_link_libraries(Pawn
                  ${CMAKE_CURRENT_SOURCE_DIR}
          )
 
-         set(APP_ICON_NAME "Pawn.icns")
          set(APP_ICON_PATH "${CMAKE_CURRENT_BINARY_DIR}/${APP_ICON_NAME}")
 
          add_custom_command(
